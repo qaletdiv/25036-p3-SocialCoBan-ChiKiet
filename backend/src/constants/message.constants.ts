@@ -1,0 +1,5 @@
+export const MESSAGE_MAX_LENGTH = 5000;
+export const MESSAGE_PAGE_SIZE = 30;
+export const CONVERSATION_PAGE_SIZE = 20;
+export const MESSAGE_RECALL_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const TYPING_EVENT_MIN_INTERVAL_MS = 500;

@@ -1,0 +1,8 @@
+export const MESSAGE_MAX_LENGTH = 5000;
+export const MESSAGE_RECALL_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const CONTACT_SEARCH_DEBOUNCE_MS = 300;
+export const CONTACT_SEARCH_MAX_LENGTH = 100;
+export const TYPING_SEND_INTERVAL_MS = 2000;
+export const TYPING_IDLE_TIMEOUT_MS = 3000;
+export const TYPING_EXPIRE_MS = 5000;
+export const UNREAD_BADGE_MAX = 99;
