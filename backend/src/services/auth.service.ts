@@ -19,6 +19,7 @@ export interface PublicUser {
   username: string;
   fullName: string;
   avatarUrl: string | null;
+  role: User["role"];
 }
 
 export interface LoginResult {
@@ -34,6 +35,7 @@ const toPublicUser = (user: User): PublicUser => ({
   username: user.username,
   fullName: user.fullName,
   avatarUrl: user.avatarUrl,
+  role: user.role,
 });
 
 const isDuplicateEntryError = (error: unknown): error is QueryFailedError =>
@@ -75,6 +77,9 @@ export const authService = {
   async login(dto: LoginDto): Promise<LoginResult> {
     const user = await findUserByCredentials(dto);
 
+    if (user.lockedAt) {
+      throw AppError.accountLocked();
+    }
     if (!user.emailVerifiedAt) {
       throw AppError.emailNotVerified();
     }
@@ -140,6 +145,9 @@ export const authService = {
     const user = await userRepository.findById(session.userId);
     if (!user) {
       throw AppError.unauthorized("Account no longer exists");
+    }
+    if (user.lockedAt) {
+      throw AppError.accountLocked();
     }
 
     const revokedBefore = user.sessionsValidAfter ? Math.floor(user.sessionsValidAfter.getTime() / 1000) : 0;

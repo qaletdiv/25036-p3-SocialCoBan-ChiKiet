@@ -1,5 +1,7 @@
-import type { EntityManager } from "typeorm";
+import { MoreThanOrEqual, type EntityManager } from "typeorm";
 import { AppDataSource } from "@/config/data-source";
+import type { AccountStatus } from "@/constants/account-status.constants";
+import type { UserRole } from "@/constants/user-role.constants";
 import { User } from "@/entities/user.entity";
 
 const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (character) => `\\${character}`);
@@ -16,9 +18,25 @@ interface NewAccountData {
   passwordHash: string;
 }
 
+export interface AdminUserFilters {
+  term?: string;
+  status?: AccountStatus;
+  role?: UserRole;
+  cursor?: string;
+  limit: number;
+}
+
 export const userRepository = AppDataSource.getRepository(User).extend({
   findById(id: string): Promise<User | null> {
     return this.findOne({ where: { id } });
+  },
+
+  countAll(): Promise<number> {
+    return this.count();
+  },
+
+  countCreatedSince(since: Date): Promise<number> {
+    return this.count({ where: { createdAt: MoreThanOrEqual(since) } });
   },
 
   findByEmail(email: string): Promise<User | null> {
@@ -109,5 +127,32 @@ export const userRepository = AppDataSource.getRepository(User).extend({
     }
 
     return query.getMany();
+  },
+
+  searchForAdmin({ term, status, role, cursor, limit }: AdminUserFilters): Promise<User[]> {
+    const query = this.createQueryBuilder("user").orderBy("user.id", "DESC").limit(limit);
+    if (cursor) query.andWhere("user.id < :cursor", { cursor });
+    if (role) query.andWhere("user.role = :role", { role });
+    if (status === "locked") query.andWhere("user.locked_at IS NOT NULL");
+    if (status === "unverified") query.andWhere("user.locked_at IS NULL AND user.email_verified_at IS NULL");
+    if (status === "active") query.andWhere("user.locked_at IS NULL AND user.email_verified_at IS NOT NULL");
+    if (term) {
+      query.andWhere(
+        `(user.full_name LIKE :pattern ESCAPE '\\\\'
+          OR user.username LIKE :pattern ESCAPE '\\\\'
+          OR user.email LIKE :pattern ESCAPE '\\\\')`,
+        { pattern: `%${escapeLike(term)}%` },
+      );
+    }
+    return query.getMany();
+  },
+
+  async setLocked(userId: string, locked: boolean): Promise<void> {
+    if (!locked) {
+      await this.update({ id: userId }, { lockedAt: null });
+      return;
+    }
+    const now = new Date();
+    await this.update({ id: userId }, { lockedAt: now, sessionsValidAfter: now });
   },
 });

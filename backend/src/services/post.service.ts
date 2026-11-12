@@ -1,6 +1,7 @@
 import type { PostPrivacy } from "@/constants/privacy.constants";
 import type { ProfilePostKind } from "@/constants/profile.constants";
 import { FEED_DEFAULT_PAGE_SIZE } from "@/constants/post.constants";
+import { REACTION_TYPES, type ReactionType } from "@/constants/reaction.constants";
 import type { Post } from "@/entities/post.entity";
 import { commentRepository } from "@/repositories/comment.repository";
 import { postRepository } from "@/repositories/post.repository";
@@ -17,8 +18,10 @@ export interface SharedOriginalView {
   author: { id: string; fullName: string; avatarUrl: string | null };
 }
 
+export type SharedPostState = "available" | "removed" | "unavailable";
+
 export interface SharedPostView {
-  available: boolean;
+  state: SharedPostState;
   original: SharedOriginalView | null;
 }
 
@@ -30,6 +33,7 @@ export interface PostView {
   editedAt: Date | null;
   author: { id: string; fullName: string; avatarUrl: string | null };
   sharedPost: SharedPostView | null;
+  removed: boolean;
   reactions: ReactionSummary;
   commentCount: number;
 }
@@ -45,10 +49,21 @@ const toAuthor = (author: Post["author"]) => ({
   avatarUrl: author.avatarUrl,
 });
 
+const emptyReactions = (): ReactionSummary => ({
+  total: 0,
+  counts: Object.fromEntries(REACTION_TYPES.map((type) => [type, 0])) as Record<ReactionType, number>,
+  myReaction: null,
+});
+
+const isRemovedByModeration = (post: Post): boolean => post.removedByModeration && post.deletedAt !== null;
+
 const toSharedPostView = (original: Post | undefined, visibleIds: ReadonlySet<string>): SharedPostView => {
-  if (!original || !visibleIds.has(original.id)) return { available: false, original: null };
+  if (original && isRemovedByModeration(original)) return { state: "removed", original: null };
+  if (!original || original.deletedAt !== null || !visibleIds.has(original.id)) {
+    return { state: "unavailable", original: null };
+  }
   return {
-    available: true,
+    state: "available",
     original: {
       id: original.id,
       content: original.content,
@@ -71,19 +86,25 @@ const toPostViews = async (viewerId: string, posts: Post[]): Promise<PostView[]>
   const originalsById = new Map(originals.map((post) => [post.id, post]));
   const visibleOriginalIds = await postAccessService.visibleIds(viewerId, originals);
 
-  return posts.map((post) => ({
-    id: post.id,
-    content: post.content,
-    privacy: post.privacy,
-    createdAt: post.createdAt,
-    editedAt: post.editedAt,
-    author: toAuthor(post.author),
-    sharedPost: post.sharedPostId
-      ? toSharedPostView(originalsById.get(post.sharedPostId), visibleOriginalIds)
-      : null,
-    reactions: reactions.get(post.id) as ReactionSummary,
-    commentCount: commentCounts.get(post.id) ?? 0,
-  }));
+  return posts.map((post) => {
+    const removed = isRemovedByModeration(post);
+    return {
+      id: post.id,
+      content: removed ? "" : post.content,
+      privacy: post.privacy,
+      createdAt: post.createdAt,
+      editedAt: removed ? null : post.editedAt,
+      author: toAuthor(post.author),
+      sharedPost: post.sharedPostId
+        ? removed
+          ? { state: "removed" as const, original: null }
+          : toSharedPostView(originalsById.get(post.sharedPostId), visibleOriginalIds)
+        : null,
+      removed,
+      reactions: removed ? emptyReactions() : (reactions.get(post.id) as ReactionSummary),
+      commentCount: removed ? 0 : (commentCounts.get(post.id) ?? 0),
+    };
+  });
 };
 
 const toPostView = async (viewerId: string, post: Post): Promise<PostView> => {

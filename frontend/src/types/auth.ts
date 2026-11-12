@@ -1,9 +1,12 @@
+export type UserRole = "user" | "admin";
+
 export interface AuthUser {
   id: string;
   email: string;
   username: string;
   fullName: string;
   avatarUrl: string | null;
+  role: UserRole;
 }
 
 export interface LoginPayload {

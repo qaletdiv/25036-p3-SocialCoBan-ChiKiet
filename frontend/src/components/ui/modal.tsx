@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 
 interface ModalProps {
   open: boolean;
@@ -35,10 +36,22 @@ export function Modal({ open, title, description, onClose, children }: ModalProp
         className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h2 id="modal-title" className="text-lg font-bold text-brand-900">
-          {title}
-        </h2>
-        {description && <p className="mt-2 text-sm leading-relaxed text-zinc-600">{description}</p>}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="modal-title" className="text-lg font-bold text-brand-900">
+              {title}
+            </h2>
+            {description && <p className="mt-2 text-sm leading-relaxed text-zinc-600">{description}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Đóng"
+            className="-mt-1 -mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
+        </div>
         <div className="mt-4">{children}</div>
       </div>
     </div>,

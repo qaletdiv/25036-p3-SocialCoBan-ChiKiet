@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { ApiError } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/error-messages";
+import { landingPathFor } from "@/lib/redirect";
 import { authService } from "@/services/auth.service";
 import type { LoginPayload } from "@/types/auth";
 
@@ -35,9 +36,9 @@ export const useLogin = (redirectTo: string) => {
     setNeedsVerification(false);
     setResendNotice(null);
     try {
-      await authService.login({ identifier: identifier.trim(), password });
+      const user = await authService.login({ identifier: identifier.trim(), password });
       setIsRedirecting(true);
-      router.replace(redirectTo);
+      router.replace(landingPathFor(redirectTo, user.role));
     } catch (error) {
       setNeedsVerification(error instanceof ApiError && error.code === "EMAIL_NOT_VERIFIED");
       setServerError(getErrorMessage(error));

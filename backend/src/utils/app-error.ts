@@ -13,9 +13,15 @@ export type ErrorCode =
   | "EMAIL_DELIVERY_FAILED"
   | "UNAUTHORIZED"
   | "FORBIDDEN"
+  | "ACCOUNT_LOCKED"
+  | "CANNOT_LOCK_ADMIN"
   | "CANNOT_SHARE_OWN_POST"
   | "CANNOT_SHARE_NON_PUBLIC_POST"
   | "CANNOT_REPORT_OWN_POST"
+  | "CANNOT_REPORT_OWN_COMMENT"
+  | "REPORT_ALREADY_HANDLED"
+  | "REPORT_CONTENT_UNAVAILABLE"
+  | "REPORT_CONTENT_AVAILABLE"
   | "CANNOT_FOLLOW_SELF"
   | "CANNOT_MESSAGE_SELF"
   | "MESSAGE_RECALL_EXPIRED"
@@ -95,6 +101,14 @@ export class AppError extends Error {
     return new AppError(403, "FORBIDDEN", message);
   }
 
+  static accountLocked(): AppError {
+    return new AppError(403, "ACCOUNT_LOCKED", "This account has been locked");
+  }
+
+  static cannotLockAdmin(): AppError {
+    return new AppError(403, "CANNOT_LOCK_ADMIN", "Admin accounts cannot be locked");
+  }
+
   static cannotShareOwnPost(): AppError {
     return new AppError(403, "CANNOT_SHARE_OWN_POST", "You cannot share your own posts");
   }
@@ -117,6 +131,22 @@ export class AppError extends Error {
 
   static cannotReportOwnPost(): AppError {
     return new AppError(403, "CANNOT_REPORT_OWN_POST", "You cannot report your own posts");
+  }
+
+  static cannotReportOwnComment(): AppError {
+    return new AppError(403, "CANNOT_REPORT_OWN_COMMENT", "You cannot report your own comments");
+  }
+
+  static reportAlreadyHandled(): AppError {
+    return new AppError(409, "REPORT_ALREADY_HANDLED", "This report has already been handled");
+  }
+
+  static reportContentUnavailable(): AppError {
+    return new AppError(409, "REPORT_CONTENT_UNAVAILABLE", "The reported content no longer exists");
+  }
+
+  static reportContentAvailable(): AppError {
+    return new AppError(409, "REPORT_CONTENT_AVAILABLE", "The reported content still exists");
   }
 
   static notFound(message = "Resource not found"): AppError {

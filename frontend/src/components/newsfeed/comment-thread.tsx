@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { CommentComposer } from "@/components/newsfeed/comment-composer";
 import { CommentItem } from "@/components/newsfeed/comment-item";
+import { ReportContentDialog } from "@/components/newsfeed/report-content-dialog";
 import { Button } from "@/components/ui/button";
 import { usePostComments } from "@/hooks/use-post-comments";
 import type { AuthUser } from "@/types/auth";
@@ -13,6 +15,8 @@ interface CommentThreadProps {
 }
 
 export function CommentThread({ user, comments }: CommentThreadProps) {
+  const [reportCommentId, setReportCommentId] = useState<string | null>(null);
+
   return (
     <div className="mt-3 space-y-4 border-t border-brand-50 pt-3">
       <CommentComposer user={user} placeholder="Viết bình luận..." submitLabel="Gửi" onSubmit={comments.addComment} />
@@ -50,6 +54,7 @@ export function CommentThread({ user, comments }: CommentThreadProps) {
                 currentUserId={user.id}
                 canReply
                 isReplying={isReplying}
+                onReport={() => setReportCommentId(comment.id)}
                 onReply={() => {
                   if (isReplying) {
                     comments.setReplyingToId(null);
@@ -100,6 +105,7 @@ export function CommentThread({ user, comments }: CommentThreadProps) {
                       key={reply.id}
                       comment={reply}
                       currentUserId={user.id}
+                      onReport={() => setReportCommentId(reply.id)}
                       onUpdated={(updated) => comments.replaceReply(comment.id, updated)}
                       onDeleted={(replyId, commentCount) => comments.removeReply(comment.id, replyId, commentCount)}
                     />
@@ -169,6 +175,11 @@ export function CommentThread({ user, comments }: CommentThreadProps) {
           )}
         </div>
       )}
+
+      <ReportContentDialog
+        target={reportCommentId ? { kind: "comment", id: reportCommentId } : null}
+        onClose={() => setReportCommentId(null)}
+      />
     </div>
   );
 }

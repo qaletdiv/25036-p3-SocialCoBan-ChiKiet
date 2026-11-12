@@ -1,25 +1,25 @@
 import Link from "next/link";
-import { FileX, Flag } from "lucide-react";
+import { Flag } from "lucide-react";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { userProfilePath } from "@/constants/navigation";
 import { PostContent } from "@/components/newsfeed/post-content";
+import { UnavailableContent } from "@/components/newsfeed/unavailable-content";
 import { formatFullDate, formatRelativeTime } from "@/lib/format-time";
-import type { SharedOriginal } from "@/types/post";
+import type { SharedOriginal, SharedPostState } from "@/types/post";
 
 interface SharedPostPreviewProps {
-  available: boolean;
+  state: SharedPostState;
   original: SharedOriginal | null;
   onReport?: () => void;
 }
 
-export function SharedPostPreview({ available, original, onReport }: SharedPostPreviewProps) {
-  if (!available || !original) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl border border-dashed border-brand-200 bg-brand-50/50 px-4 py-5 text-sm text-zinc-500">
-        <FileX className="size-5 shrink-0" aria-hidden="true" />
-        Bài viết gốc không còn tồn tại.
-      </div>
-    );
+export function SharedPostPreview({ state, original, onReport }: SharedPostPreviewProps) {
+  if (state === "removed") {
+    return <UnavailableContent kind="removed-original" />;
+  }
+
+  if (state !== "available" || !original) {
+    return <UnavailableContent kind="missing-original" />;
   }
 
   return (

@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LOGIN_PATH } from "@/lib/redirect";
 import { authService } from "@/services/auth.service";
 
 export const useLogout = () => {
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const logout = async () => {
@@ -14,7 +12,8 @@ export const useLogout = () => {
     try {
       await authService.logout();
     } finally {
-      router.replace(LOGIN_PATH);
+      // A client-side navigation restores the login page still stuck on "Đang đăng nhập..."
+      window.location.replace(LOGIN_PATH);
     }
   };
 

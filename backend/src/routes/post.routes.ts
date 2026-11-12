@@ -9,7 +9,7 @@ import { FeedQueryDto } from "@/dtos/feed-query.dto";
 import { IdParamDto } from "@/dtos/id-param.dto";
 import { PostContentDto } from "@/dtos/post-content.dto";
 import { PostPrivacyDto } from "@/dtos/post-privacy.dto";
-import { ReportPostDto } from "@/dtos/report-post.dto";
+import { ReportContentDto } from "@/dtos/report-content.dto";
 import { SetReactionDto } from "@/dtos/set-reaction.dto";
 import { SharePostDto } from "@/dtos/share-post.dto";
 import { UpdatePostDto } from "@/dtos/update-post.dto";
@@ -34,7 +34,7 @@ postRouter.patch("/:id/privacy", modifyPostLimiter, validateParams(IdParamDto), 
 postRouter.patch("/:id", modifyPostLimiter, validateParams(IdParamDto), validateBody(UpdatePostDto), updatePost);
 postRouter.delete("/:id", modifyPostLimiter, validateParams(IdParamDto), deletePost);
 postRouter.post("/:id/share", shareLimiter, validateParams(IdParamDto), validateBody(SharePostDto), sharePost);
-postRouter.post("/:id/report", reportLimiter, validateParams(IdParamDto), validateBody(ReportPostDto), reportPost);
+postRouter.post("/:id/report", reportLimiter, validateParams(IdParamDto), validateBody(ReportContentDto), reportPost);
 
 postRouter.put("/:id/reaction", reactionLimiter, validateParams(IdParamDto), validateBody(SetReactionDto), setReaction);
 postRouter.delete("/:id/reaction", reactionLimiter, validateParams(IdParamDto), removeReaction);

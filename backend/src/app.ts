@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { env } from "@/config/env";
 import { errorHandler, notFoundHandler } from "@/middlewares/error.middleware";
+import { adminRouter } from "@/routes/admin.routes";
 import { authRouter } from "@/routes/auth.routes";
 import { commentRouter } from "@/routes/comment.routes";
 import { conversationRouter } from "@/routes/conversation.routes";
@@ -22,6 +23,7 @@ export const createApp = () => {
     res.json({ success: true, data: { status: "ok" } });
   });
   app.use("/api/auth", authRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api/posts", postRouter);
   app.use("/api/users", userRouter);
   app.use("/api/comments", commentRouter);

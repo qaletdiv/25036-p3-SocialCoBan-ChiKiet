@@ -1,25 +1,45 @@
 import { AppDataSource } from "@/config/data-source";
-import type { ReportReason } from "@/constants/report.constants";
-import { PostReport } from "@/entities/post-report.entity";
+import type { ReportReason, ReportStatus, ReportTargetType } from "@/constants/report.constants";
+import { ContentReport } from "@/entities/content-report.entity";
 
-export const reportRepository = AppDataSource.getRepository(PostReport).extend({
-  findByPostAndUser(postId: string, userId: string): Promise<PostReport | null> {
-    return this.findOne({ where: { postId, userId } });
-  },
+export interface ReportTarget {
+  type: ReportTargetType;
+  id: string;
+}
 
+export const reportRepository = AppDataSource.getRepository(ContentReport).extend({
   async saveReport(
-    postId: string,
+    target: ReportTarget,
     userId: string,
     reason: ReportReason,
     detail: string | null,
   ): Promise<{ updated: boolean }> {
-    const existing = await this.findOne({ where: { postId, userId } });
+    const isPost = target.type === "post";
+    const existing = await this.findOne({
+      where: isPost ? { postId: target.id, userId } : { commentId: target.id, userId },
+    });
+
     if (existing) {
-      await this.update({ id: existing.id }, { reason, detail });
+      // A repeat report refreshes the reason and puts the report back in the pending queue
+      await this.update({ id: existing.id }, { reason, detail, status: "pending" });
       return { updated: true };
     }
 
-    await this.save(this.create({ postId, userId, reason, detail }));
+    await this.save(
+      this.create({
+        targetType: target.type,
+        postId: isPost ? target.id : null,
+        commentId: isPost ? null : target.id,
+        userId,
+        reason,
+        detail,
+        status: "pending",
+      }),
+    );
     return { updated: false };
+  },
+
+  countByStatus(status: ReportStatus): Promise<number> {
+    return this.count({ where: { status } });
   },
 });

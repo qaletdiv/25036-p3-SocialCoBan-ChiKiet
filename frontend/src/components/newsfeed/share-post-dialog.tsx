@@ -76,7 +76,7 @@ function SharePostForm({
           void submit();
         }}
       >
-        {preview && <SharedPostPreview available original={preview} />}
+        {preview && <SharedPostPreview state="available" original={preview} />}
         <Textarea
           aria-label="Lời dẫn"
           aria-invalid={isTooLong}

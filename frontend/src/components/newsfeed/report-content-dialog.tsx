@@ -10,14 +10,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { REPORT_DETAIL_MAX_LENGTH, REPORT_REASONS, type ReportReason } from "@/constants/report";
 import { getErrorMessage } from "@/lib/error-messages";
 import { cn } from "@/lib/cn";
+import { commentService } from "@/services/comment.service";
 import { postService } from "@/services/post.service";
 
-interface ReportPostDialogProps {
-  postId: string | null;
+export interface ReportTarget {
+  kind: "post" | "comment";
+  id: string;
+}
+
+interface ReportContentDialogProps {
+  target: ReportTarget | null;
   onClose: () => void;
 }
 
-export function ReportPostDialog({ postId, onClose }: ReportPostDialogProps) {
+const DIALOG_COPY = {
+  post: {
+    title: "Báo cáo bài viết",
+    description: "Báo cáo được lưu lại để xử lý sau. Bài viết vẫn hiển thị bình thường cho đến khi được xem xét.",
+  },
+  comment: {
+    title: "Báo cáo bình luận",
+    description: "Báo cáo được lưu lại để xử lý sau. Bình luận vẫn hiển thị bình thường cho đến khi được xem xét.",
+  },
+} as const;
+
+export function ReportContentDialog({ target, onClose }: ReportContentDialogProps) {
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [detail, setDetail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,11 +55,12 @@ export function ReportPostDialog({ postId, onClose }: ReportPostDialogProps) {
   };
 
   const submit = async () => {
-    if (!postId || !canSubmit || !reason) return;
+    if (!target || !canSubmit || !reason) return;
     setIsSubmitting(true);
     setError(null);
     try {
-      const response = await postService.report(postId, reason, isOther ? detail.trim() : undefined);
+      const submitReport = target.kind === "post" ? postService.report : commentService.report;
+      const response = await submitReport(target.id, reason, isOther ? detail.trim() : undefined);
       setResult(response.updated ? "updated" : "created");
     } catch (submitError) {
       setError(getErrorMessage(submitError));
@@ -53,9 +71,9 @@ export function ReportPostDialog({ postId, onClose }: ReportPostDialogProps) {
 
   return (
     <Modal
-      open={postId !== null}
-      title="Báo cáo bài viết"
-      description="Báo cáo được lưu lại để xử lý sau. Bài viết vẫn hiển thị bình thường cho đến khi được xem xét."
+      open={target !== null}
+      title={DIALOG_COPY[target?.kind ?? "post"].title}
+      description={DIALOG_COPY[target?.kind ?? "post"].description}
       onClose={close}
     >
       {result ? (

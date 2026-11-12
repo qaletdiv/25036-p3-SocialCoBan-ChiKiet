@@ -23,8 +23,10 @@ export interface SharedOriginal {
   author: PostAuthor;
 }
 
+export type SharedPostState = "available" | "removed" | "unavailable";
+
 export interface SharedPost {
-  available: boolean;
+  state: SharedPostState;
   original: SharedOriginal | null;
 }
 
@@ -36,6 +38,7 @@ export interface Post {
   editedAt: string | null;
   author: PostAuthor;
   sharedPost: SharedPost | null;
+  removed: boolean;
   reactions: ReactionSummary;
   commentCount: number;
 }

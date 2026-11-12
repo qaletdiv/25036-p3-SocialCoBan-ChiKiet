@@ -1,4 +1,4 @@
-import { Brackets, In, type SelectQueryBuilder } from "typeorm";
+import { Brackets, In, MoreThanOrEqual, type SelectQueryBuilder } from "typeorm";
 import { AppDataSource } from "@/config/data-source";
 import type { PostPrivacy } from "@/constants/privacy.constants";
 import type { ProfilePostKind } from "@/constants/profile.constants";
@@ -19,10 +19,14 @@ const whereVisibleToViewer = (query: SelectQueryBuilder<Post>): SelectQueryBuild
   return query.expressionMap.wheres.length === 0 ? query.where(condition) : query.andWhere(condition);
 };
 
+// Author deletes stay hidden. Admin removals stay in the feed as a placeholder.
+const includeReadableOrRemoved = (query: SelectQueryBuilder<Post>): SelectQueryBuilder<Post> =>
+  query.withDeleted().andWhere("(post.deleted_at IS NULL OR post.removed_by_moderation = 1)");
+
 export const postRepository = AppDataSource.getRepository(Post).extend({
   findVisibleFeedPage(viewerId: string, limit: number, cursor?: string): Promise<Post[]> {
-    const query = whereVisibleToViewer(
-      this.createQueryBuilder("post").innerJoinAndSelect("post.author", "author"),
+    const query = includeReadableOrRemoved(
+      whereVisibleToViewer(this.createQueryBuilder("post").innerJoinAndSelect("post.author", "author")),
     )
       .setParameters({ viewerId, publicPrivacy: "public", followersPrivacy: "followers" })
       .orderBy("post.id", "DESC")
@@ -39,8 +43,10 @@ export const postRepository = AppDataSource.getRepository(Post).extend({
     limit: number,
     cursor?: string,
   ): Promise<Post[]> {
-    const query = whereVisibleToViewer(
-      this.createQueryBuilder("post").innerJoinAndSelect("post.author", "author").where("post.userId = :authorId"),
+    const query = includeReadableOrRemoved(
+      whereVisibleToViewer(
+        this.createQueryBuilder("post").innerJoinAndSelect("post.author", "author").where("post.userId = :authorId"),
+      ),
     )
       .andWhere(kind === "authored" ? "post.sharedPostId IS NULL" : "post.sharedPostId IS NOT NULL")
       .setParameters({
@@ -70,12 +76,16 @@ export const postRepository = AppDataSource.getRepository(Post).extend({
   },
 
   async createForUser(userId: string, content: string, privacy: PostPrivacy): Promise<Post> {
-    const post = await this.save(this.create({ userId, content, privacy, sharedPostId: null, editedAt: null }));
+    const post = await this.save(
+      this.create({ userId, content, privacy, sharedPostId: null, editedAt: null, removedByModeration: false }),
+    );
     return this.findOneOrFail({ where: { id: post.id }, relations: { author: true } });
   },
 
   async createShare(userId: string, sharedPostId: string, content: string, privacy: PostPrivacy): Promise<Post> {
-    const post = await this.save(this.create({ userId, content, privacy, sharedPostId, editedAt: null }));
+    const post = await this.save(
+      this.create({ userId, content, privacy, sharedPostId, editedAt: null, removedByModeration: false }),
+    );
     return this.findOneOrFail({ where: { id: post.id }, relations: { author: true } });
   },
 
@@ -93,5 +103,13 @@ export const postRepository = AppDataSource.getRepository(Post).extend({
 
   async hardDeleteById(id: string): Promise<void> {
     await this.delete({ id });
+  },
+
+  countExisting(): Promise<number> {
+    return this.count();
+  },
+
+  countCreatedSince(since: Date): Promise<number> {
+    return this.count({ where: { createdAt: MoreThanOrEqual(since) } });
   },
 });

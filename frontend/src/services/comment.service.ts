@@ -1,4 +1,5 @@
 import { COMMENT_PAGE_SIZE } from "@/constants/comment";
+import type { ReportReason } from "@/constants/report";
 import { apiRequest } from "@/lib/api-client";
 import type { Comment, CommentPage, CreatedComment } from "@/types/comment";
 
@@ -34,5 +35,12 @@ export const commentService = {
 
   remove(id: string): Promise<{ commentCount: number }> {
     return apiRequest<{ commentCount: number }>(`/comments/${id}`, { method: "DELETE" });
+  },
+
+  report(id: string, reason: ReportReason, detail?: string): Promise<{ updated: boolean }> {
+    return apiRequest<{ updated: boolean }>(`/comments/${id}/report`, {
+      method: "POST",
+      body: JSON.stringify({ reason, detail }),
+    });
   },
 };

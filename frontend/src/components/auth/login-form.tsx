@@ -8,7 +8,7 @@ import { TextField } from "@/components/ui/text-field";
 import type { useLogin } from "@/hooks/use-login";
 import { loginValidation } from "@/lib/validations/login";
 
-type LoginFormProps = ReturnType<typeof useLogin> & { justRegistered: boolean };
+type LoginFormProps = ReturnType<typeof useLogin> & { justRegistered: boolean; lockedNotice?: boolean };
 
 export function LoginForm({
   register,
@@ -21,6 +21,7 @@ export function LoginForm({
   resendNotice,
   resendVerificationEmail,
   justRegistered,
+  lockedNotice = false,
 }: LoginFormProps) {
   const isResendSuccess = resendNotice?.type === "success";
   const showRegisteredNotice = justRegistered && !serverError && !isResendSuccess;
@@ -33,6 +34,11 @@ export function LoginForm({
       </header>
 
       <form onSubmit={onSubmit} noValidate className="space-y-5">
+        {lockedNotice && !serverError && (
+          <FormAlert variant="error">
+            <p>Tài khoản đã bị khóa. Bạn không thể đăng nhập hoặc dùng các chức năng cần tài khoản.</p>
+          </FormAlert>
+        )}
         <TextField
           id="identifier"
           type="text"

@@ -38,6 +38,9 @@ export class Post {
   @DeleteDateColumn({ name: "deleted_at", type: "datetime", precision: 6 })
   deletedAt: Date | null;
 
+  @Column({ name: "removed_by_moderation", type: "boolean", default: false })
+  removedByModeration: boolean;
+
   @CreateDateColumn({ name: "created_at", type: "datetime", precision: 6 })
   createdAt: Date;
 

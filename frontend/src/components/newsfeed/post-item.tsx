@@ -10,9 +10,10 @@ import { PostContent } from "@/components/newsfeed/post-content";
 import { PostEditForm } from "@/components/newsfeed/post-edit-form";
 import { PostPrivacyDialog } from "@/components/newsfeed/post-privacy-dialog";
 import { PRIVACY_LABELS } from "@/components/newsfeed/privacy-picker";
-import { ReportPostDialog } from "@/components/newsfeed/report-post-dialog";
+import { ReportContentDialog } from "@/components/newsfeed/report-content-dialog";
 import { SharePostDialog } from "@/components/newsfeed/share-post-dialog";
 import { SharedPostPreview } from "@/components/newsfeed/shared-post-preview";
+import { UnavailableContent } from "@/components/newsfeed/unavailable-content";
 import { usePostComments } from "@/hooks/use-post-comments";
 import { usePostItem } from "@/hooks/use-post-item";
 import { usePostReactions } from "@/hooks/use-post-reactions";
@@ -61,6 +62,18 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
           author: post.author,
         });
 
+  if (post.removed) {
+    return (
+      <PostCard
+        author={post.author}
+        timeLabel={formatRelativeTime(post.createdAt)}
+        timeTitle={formatFullDate(post.createdAt)}
+      >
+        <UnavailableContent kind="removed-post" />
+      </PostCard>
+    );
+  }
+
   return (
     <>
       <PostCard
@@ -97,7 +110,11 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
               onSave={() => void item.save()}
               onCancel={item.cancelEdit}
             />
-            {post.sharedPost && <div className="mt-3"><SharedPostPreview available={post.sharedPost.available} original={post.sharedPost.original} /></div>}
+            {post.sharedPost && (
+              <div className="mt-3">
+                <SharedPostPreview state={post.sharedPost.state} original={post.sharedPost.original} />
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -105,7 +122,7 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
             {post.sharedPost && (
               <div className={post.content ? "mt-3" : undefined}>
                 <SharedPostPreview
-                  available={post.sharedPost.available}
+                  state={post.sharedPost.state}
                   original={post.sharedPost.original}
                   onReport={
                     post.sharedPost.original && post.sharedPost.original.author.id !== user.id
@@ -169,7 +186,10 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
           }}
         />
       )}
-      <ReportPostDialog postId={reportPostId} onClose={() => setReportPostId(null)} />
+      <ReportContentDialog
+        target={reportPostId ? { kind: "post", id: reportPostId } : null}
+        onClose={() => setReportPostId(null)}
+      />
     </>
   );
 }

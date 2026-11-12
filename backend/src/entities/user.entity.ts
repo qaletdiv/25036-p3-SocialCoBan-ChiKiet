@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { USER_ROLES, type UserRole } from "@/constants/user-role.constants";
 
 @Entity({ name: "users" })
 export class User {
@@ -40,6 +41,12 @@ export class User {
 
   @Column({ name: "sessions_valid_after", type: "datetime", precision: 6, nullable: true })
   sessionsValidAfter: Date | null;
+
+  @Column({ type: "enum", enum: USER_ROLES, default: "user" })
+  role: UserRole;
+
+  @Column({ name: "locked_at", type: "datetime", precision: 6, nullable: true })
+  lockedAt: Date | null;
 
   @CreateDateColumn({ name: "created_at", type: "datetime" })
   createdAt: Date;

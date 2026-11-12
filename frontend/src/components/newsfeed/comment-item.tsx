@@ -19,6 +19,7 @@ interface CommentItemProps {
   canReply?: boolean;
   isReplying?: boolean;
   onReply?: () => void;
+  onReport?: () => void;
   onUpdated: (comment: Comment) => void;
   onDeleted: (commentId: string, commentCount?: number) => void;
 }
@@ -29,6 +30,7 @@ export function CommentItem({
   canReply = false,
   isReplying = false,
   onReply,
+  onReport,
   onUpdated,
   onDeleted,
 }: CommentItemProps) {
@@ -83,6 +85,7 @@ export function CommentItem({
                   onDelete={() => item.setDeleteDialogOpen(true)}
                 />
               )}
+              {!isOwner && onReport && <PostActionsMenu label="Tùy chọn bình luận" onReport={onReport} />}
             </div>
             <div className="mt-1.5">
               <PostContent content={comment.content} />
