@@ -23,11 +23,15 @@ interface ApiErrorBody {
 
 export const apiRequest = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   let response: Response;
+  const headers = new Headers(init.headers);
+  if (typeof init.body === "string" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...init.headers },
+      headers,
     });
   } catch {
     throw new ApiError(0, "NETWORK_ERROR", "Unable to reach the server");

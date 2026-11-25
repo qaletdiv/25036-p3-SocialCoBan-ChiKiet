@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { UnreadBadge } from "@/components/messages/unread-badge";
+import { userProfilePath } from "@/constants/navigation";
 import { cn } from "@/lib/cn";
 import { formatRelativeTime } from "@/lib/format-time";
 import type { Conversation } from "@/types/conversation";
@@ -22,16 +24,25 @@ export function ConversationListItem({ conversation, currentUserId, isActive, on
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-current={isActive ? "true" : undefined}
+      <div
         className={cn(
-          "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100",
+          "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors",
           isActive ? "bg-brand-100/70" : "hover:bg-brand-50",
         )}
       >
-        <UserAvatar fullName={participant.fullName} avatarUrl={participant.avatarUrl} />
+        <Link
+          href={userProfilePath(participant.id)}
+          aria-label={`Trang cá nhân của ${participant.fullName}`}
+          className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+        >
+          <UserAvatar fullName={participant.fullName} avatarUrl={participant.avatarUrl} />
+        </Link>
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-current={isActive ? "true" : undefined}
+          className="flex min-w-0 flex-1 items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100"
+        >
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
             <span className={cn("truncate text-brand-900", hasUnread ? "font-bold" : "font-semibold")}>
@@ -56,7 +67,8 @@ export function ConversationListItem({ conversation, currentUserId, isActive, on
             <UnreadBadge count={conversation.unreadCount} className="shrink-0" />
           </span>
         </span>
-      </button>
+        </button>
+      </div>
     </li>
   );
 }

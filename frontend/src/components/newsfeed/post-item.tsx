@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CommentThread } from "@/components/newsfeed/comment-thread";
 import { DeletePostDialog } from "@/components/newsfeed/delete-post-dialog";
 import { PostActionBar } from "@/components/newsfeed/post-action-bar";
@@ -8,6 +8,7 @@ import { PostActionsMenu } from "@/components/newsfeed/post-actions-menu";
 import { PostCard } from "@/components/newsfeed/post-card";
 import { PostContent } from "@/components/newsfeed/post-content";
 import { PostEditForm } from "@/components/newsfeed/post-edit-form";
+import { PostImage } from "@/components/newsfeed/post-image";
 import { PostPrivacyDialog } from "@/components/newsfeed/post-privacy-dialog";
 import { PRIVACY_LABELS } from "@/components/newsfeed/privacy-picker";
 import { ReportContentDialog } from "@/components/newsfeed/report-content-dialog";
@@ -18,6 +19,8 @@ import { usePostComments } from "@/hooks/use-post-comments";
 import { usePostItem } from "@/hooks/use-post-item";
 import { usePostReactions } from "@/hooks/use-post-reactions";
 import { formatFullDate, formatRelativeTime } from "@/lib/format-time";
+import { getErrorMessage } from "@/lib/error-messages";
+import { validateImageFile } from "@/lib/image-file";
 import { postService } from "@/services/post.service";
 import type { AuthUser } from "@/types/auth";
 import type { Post, SharedOriginal } from "@/types/post";
@@ -42,6 +45,75 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [reportPostId, setReportPostId] = useState<string | null>(null);
+  const [replacement, setReplacement] = useState<File | null>(null);
+  const [replacementPreview, setReplacementPreview] = useState<string | null>(null);
+  const previewRef = useRef<string | null>(null);
+  const [removeExistingImage, setRemoveExistingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isSavingPost, setIsSavingPost] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    };
+  }, []);
+
+  const setPreview = (next: string | null) => {
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = next;
+    setReplacementPreview(next);
+  };
+
+  const imageChanged = replacement !== null || (removeExistingImage && post.imageUrl !== null);
+  const textChanged = item.draft.trim() !== post.content;
+  const canSaveOriginal =
+    item.draft.trim().length > 0 && !item.isDraftTooLong && (textChanged || imageChanged) && !isSavingPost;
+  const editPreview = replacementPreview ?? (removeExistingImage ? null : post.imageUrl);
+
+  const resetImageDraft = () => {
+    setReplacement(null);
+    setPreview(null);
+    setRemoveExistingImage(false);
+    setImageError(null);
+  };
+
+  const selectImage = (file: File) => {
+    const message = validateImageFile(file);
+    if (message) {
+      setImageError(message);
+      return;
+    }
+    setReplacement(file);
+    setPreview(URL.createObjectURL(file));
+    setRemoveExistingImage(false);
+    setImageError(null);
+  };
+
+  const clearImage = () => {
+    setReplacement(null);
+    setPreview(null);
+    setRemoveExistingImage(true);
+    setImageError(null);
+  };
+
+  const saveOriginal = async () => {
+    if (!canSaveOriginal) return;
+    setIsSavingPost(true);
+    setImageError(null);
+    try {
+      const updated = await postService.update(post.id, item.draft.trim(), {
+        file: replacement ?? undefined,
+        remove: replacement ? false : removeExistingImage,
+      });
+      onUpdated(updated);
+      resetImageDraft();
+      item.cancelEdit();
+    } catch (error) {
+      setImageError(getErrorMessage(error));
+    } finally {
+      setIsSavingPost(false);
+    }
+  };
 
   const original = post.sharedPost?.original ?? null;
   const shareTargetIsPublic = isShare ? original?.privacy === "public" : post.privacy === "public";
@@ -56,6 +128,7 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
       : {
           id: post.id,
           content: post.content,
+          imageUrl: post.imageUrl,
           privacy: post.privacy,
           createdAt: post.createdAt,
           editedAt: post.editedAt,
@@ -87,7 +160,14 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
             <PostActionsMenu
               editLabel={isShare ? "Chỉnh sửa lời dẫn" : undefined}
               deleteLabel={isShare ? "Gỡ chia sẻ" : undefined}
-              onEdit={isOwner ? item.startEdit : undefined}
+              onEdit={
+                isOwner
+                  ? () => {
+                      resetImageDraft();
+                      item.startEdit();
+                    }
+                  : undefined
+              }
               onPrivacy={isOwner ? () => setIsPrivacyOpen(true) : undefined}
               onDelete={isOwner ? () => item.setDeleteDialogOpen(true) : undefined}
               onReport={isOwner ? undefined : () => setReportPostId(post.id)}
@@ -101,14 +181,20 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
               draft={item.draft}
               length={item.draftLength}
               isTooLong={item.isDraftTooLong}
-              canSave={item.canSave}
-              isSaving={item.isSaving}
-              error={item.saveError}
+              canSave={isShare ? item.canSave : canSaveOriginal}
+              isSaving={isShare ? item.isSaving : isSavingPost}
+              error={imageError ?? item.saveError}
               ariaLabel={isShare ? "Lời dẫn" : undefined}
               overLimitMessage={isShare ? "Lời dẫn không được vượt quá 5.000 ký tự." : undefined}
               onChange={item.setDraft}
-              onSave={() => void item.save()}
-              onCancel={item.cancelEdit}
+              onSave={() => void (isShare ? item.save() : saveOriginal())}
+              onCancel={() => {
+                resetImageDraft();
+                item.cancelEdit();
+              }}
+              imagePreview={isShare ? undefined : editPreview}
+              onSelectImage={isShare ? undefined : selectImage}
+              onClearImage={isShare ? undefined : clearImage}
             />
             {post.sharedPost && (
               <div className="mt-3">
@@ -119,6 +205,7 @@ export function PostItem({ post, user, onUpdated, onUpsert, onPatch, onDeleted }
         ) : (
           <>
             {post.content && <PostContent content={post.content} />}
+            {!post.sharedPost && post.imageUrl && <PostImage src={post.imageUrl} />}
             {post.sharedPost && (
               <div className={post.content ? "mt-3" : undefined}>
                 <SharedPostPreview

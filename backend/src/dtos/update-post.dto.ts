@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsString, MaxLength } from "class-validator";
+import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
 import { POST_MAX_LENGTH } from "@/constants/post.constants";
 
 export class UpdatePostDto {
@@ -7,4 +7,9 @@ export class UpdatePostDto {
   @IsString()
   @MaxLength(POST_MAX_LENGTH)
   content: string;
+
+  @Transform(({ value }) => value === true || value === "true")
+  @IsOptional()
+  @IsBoolean()
+  removeImage?: boolean;
 }

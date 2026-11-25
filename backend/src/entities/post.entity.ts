@@ -26,6 +26,9 @@ export class Post {
   @Column({ type: "text" })
   content: string;
 
+  @Column({ name: "image_url", type: "varchar", length: 500, nullable: true })
+  imageUrl: string | null;
+
   @Column({ name: "shared_post_id", type: "bigint", unsigned: true, nullable: true })
   sharedPostId: string | null;
 

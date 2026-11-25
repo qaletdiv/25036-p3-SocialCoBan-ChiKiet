@@ -9,15 +9,17 @@ import { ChatProvider } from "@/components/messages/chat-provider";
 import { Button } from "@/components/ui/button";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useLogout } from "@/hooks/use-logout";
+import { buildExplorePath, parseExploreTab } from "@/lib/explore-path";
 import { buildLoginUrl } from "@/lib/redirect";
 
 export function ExploreContainer() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
+  const tab = parseExploreTab(searchParams.get("tab"));
   const { status, user, refresh } = useAuthUser();
   const { logout } = useLogout();
-  const returnTo = query.trim() ? `/explore?q=${encodeURIComponent(query.trim())}` : "/explore";
+  const returnTo = buildExplorePath(query, tab);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace(buildLoginUrl(returnTo));
@@ -41,7 +43,7 @@ export function ExploreContainer() {
 
   return (
     <ChatProvider>
-      <ExploreView user={user} query={query} onLogout={() => void logout()} />
+      <ExploreView user={user} query={query} tab={tab} onLogout={() => void logout()} />
     </ChatProvider>
   );
 }

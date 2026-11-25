@@ -2,6 +2,9 @@ import type { CookieOptions } from "express";
 import { env } from "@/config/env";
 
 export const AUTH_COOKIE_NAME = "kircle_token";
+export const GOOGLE_OAUTH_COOKIE_NAME = "kircle_google_oauth";
+export const GOOGLE_OAUTH_COOKIE_PATH = "/api/auth/google";
+export const GOOGLE_OAUTH_TTL_SECONDS = 10 * 60;
 
 export const authCookieOptions: CookieOptions = {
   httpOnly: true,

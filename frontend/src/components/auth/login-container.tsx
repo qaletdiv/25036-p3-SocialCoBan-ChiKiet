@@ -8,6 +8,7 @@ import { FullPageLoader } from "@/components/common/full-page-loader";
 import { ACCOUNT_LOCKED_NOTICE_KEY } from "@/constants/account-status";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useLogin } from "@/hooks/use-login";
+import { googleLoginErrorMessage } from "@/lib/error-messages";
 import { landingPathFor, resolveSafeRedirect } from "@/lib/redirect";
 
 export function LoginContainer() {
@@ -15,6 +16,7 @@ export function LoginContainer() {
   const searchParams = useSearchParams();
   const redirectTo = resolveSafeRedirect(searchParams.get("redirect"));
   const justRegistered = searchParams.get("registered") === "1";
+  const googleError = googleLoginErrorMessage(searchParams.get("google_error"));
   const { status, user } = useAuthUser();
   const login = useLogin(redirectTo);
   const [lockedNotice, setLockedNotice] = useState(false);
@@ -37,7 +39,13 @@ export function LoginContainer() {
 
   return (
     <AuthShell>
-      <LoginForm {...login} justRegistered={justRegistered} lockedNotice={lockedNotice} />
+      <LoginForm
+        {...login}
+        justRegistered={justRegistered}
+        lockedNotice={lockedNotice}
+        redirectTo={redirectTo}
+        googleError={googleError}
+      />
     </AuthShell>
   );
 }

@@ -11,6 +11,13 @@ export const userService = {
     return data.profile;
   },
 
+  async updateAvatar(userId: string, image: File): Promise<UserProfile> {
+    const form = new FormData();
+    form.set("image", image);
+    const data = await apiRequest<ProfileResponse>(`/users/${userId}/avatar`, { method: "POST", body: form });
+    return data.profile;
+  },
+
   async updateProfile(
     userId: string,
     input: { fullName: string; bio: string | null; username: string },

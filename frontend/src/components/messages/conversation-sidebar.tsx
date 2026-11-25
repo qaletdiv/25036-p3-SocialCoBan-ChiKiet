@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2, MessageCircle, Search, X } from "lucide-react";
 import { ContactResultItem } from "@/components/messages/contact-result-item";
 import { ConversationListItem } from "@/components/messages/conversation-list-item";
+import { MessageSearchItem } from "@/components/messages/message-search-item";
 import { Button } from "@/components/ui/button";
 import { CONTACT_SEARCH_MAX_LENGTH } from "@/constants/message";
 import { useContactSearch } from "@/hooks/use-contact-search";
 import type { ConversationsState } from "@/hooks/use-conversations";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useOpenConversation } from "@/hooks/use-open-conversation";
+import { messagesPath } from "@/constants/navigation";
 import type { Conversation } from "@/types/conversation";
 
 interface ConversationSidebarProps {
@@ -25,6 +28,7 @@ export function ConversationSidebar({
   conversationsState,
   onSelectConversation,
 }: ConversationSidebarProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const search = useContactSearch(query);
   const openConversation = useOpenConversation();
@@ -48,8 +52,8 @@ export function ConversationSidebar({
             value={query}
             maxLength={CONTACT_SEARCH_MAX_LENGTH}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm theo tên người dùng"
-            aria-label="Tìm hội thoại theo tên"
+            placeholder="Tìm theo tên hoặc nội dung tin nhắn"
+            aria-label="Tìm theo tên hoặc nội dung tin nhắn"
             className="h-11 w-full rounded-xl border border-brand-100 bg-brand-50/40 pr-10 pl-10 text-sm transition placeholder:text-zinc-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-100 [&::-webkit-search-cancel-button]:hidden"
           />
           {query && (
@@ -76,9 +80,13 @@ export function ConversationSidebar({
             term={search.term}
             status={search.status}
             users={search.users}
+            messages={search.messages}
+            currentUserId={currentUserId}
+            activeConversationId={activeConversationId}
             openingUserId={openConversation.openingUserId}
             onRetry={search.retry}
-            onOpen={(userId) => void openConversation.open(userId)}
+            onOpenUser={(userId) => void openConversation.open(userId)}
+            onOpenConversation={(conversationId, messageId) => router.push(messagesPath(conversationId, messageId))}
           />
         ) : (
           <>
@@ -145,12 +153,27 @@ interface SearchBodyProps {
   term: string;
   status: ReturnType<typeof useContactSearch>["status"];
   users: ReturnType<typeof useContactSearch>["users"];
+  messages: ReturnType<typeof useContactSearch>["messages"];
+  currentUserId: string;
+  activeConversationId: string | null;
   openingUserId: string | null;
   onRetry: () => void;
-  onOpen: (userId: string) => void;
+  onOpenUser: (userId: string) => void;
+  onOpenConversation: (conversationId: string, messageId: string) => void;
 }
 
-function SearchBody({ term, status, users, openingUserId, onRetry, onOpen }: SearchBodyProps) {
+function SearchBody({
+  term,
+  status,
+  users,
+  messages,
+  currentUserId,
+  activeConversationId,
+  openingUserId,
+  onRetry,
+  onOpenUser,
+  onOpenConversation,
+}: SearchBodyProps) {
   if (status === "idle" || status === "loading") return <ListSkeleton />;
 
   if (status === "error") {
@@ -167,27 +190,50 @@ function SearchBody({ term, status, users, openingUserId, onRetry, onOpen }: Sea
     );
   }
 
-  if (users.length === 0) {
+  if (users.length === 0 && messages.length === 0) {
     return (
       <StateMessage
         icon={<Search className="size-8 text-brand-500" aria-hidden="true" />}
-        text={`Không tìm thấy người nào tên “${term}” trong danh sách bạn đang theo dõi hoặc đã nhắn tin.`}
+        text={`Không tìm thấy người hoặc tin nhắn khớp với “${term}”.`}
       />
     );
   }
 
   return (
-    <ul className="space-y-1" aria-label="Kết quả tìm kiếm">
-      {users.map((contact) => (
-        <ContactResultItem
-          key={contact.id}
-          contact={contact}
-          isOpening={openingUserId === contact.id}
-          disabled={openingUserId !== null}
-          onSelect={() => onOpen(contact.id)}
-        />
-      ))}
-    </ul>
+    <div className="space-y-4">
+      {users.length > 0 && (
+        <section aria-label="Mọi người" className="space-y-1">
+          <h2 className="px-3 pt-1 text-xs font-semibold tracking-wide text-brand-700 uppercase">Mọi người</h2>
+          <ul className="space-y-1">
+            {users.map((contact) => (
+              <ContactResultItem
+                key={contact.id}
+                contact={contact}
+                isOpening={openingUserId === contact.id}
+                disabled={openingUserId !== null}
+                onSelect={() => onOpenUser(contact.id)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+      {messages.length > 0 && (
+        <section aria-label="Tin nhắn" className="space-y-1">
+          <h2 className="px-3 pt-1 text-xs font-semibold tracking-wide text-brand-700 uppercase">Tin nhắn</h2>
+          <ul className="space-y-1">
+            {messages.map((hit) => (
+              <MessageSearchItem
+                key={hit.message.id}
+                hit={hit}
+                currentUserId={currentUserId}
+                isActive={hit.conversationId === activeConversationId}
+                onSelect={() => onOpenConversation(hit.conversationId, hit.message.id)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   );
 }
 

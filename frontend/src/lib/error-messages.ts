@@ -16,6 +16,14 @@ const ERROR_MESSAGES: Record<string, string> = {
   NOT_FOUND: "Nội dung này không tồn tại hoặc đã bị xóa.",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
   ACCOUNT_LOCKED: "Tài khoản đã bị khóa. Bạn không thể đăng nhập hoặc dùng các chức năng cần tài khoản.",
+  GOOGLE_EMAIL_NOT_VERIFIED: "Google chưa xác minh email này. Hãy dùng một tài khoản Google đã xác minh email.",
+  GOOGLE_ACCOUNT_CONFLICT: "Không thể gắn Google vì email này đã liên kết với một tài khoản Google khác.",
+  GOOGLE_AUTH_FAILED: "Không thể đăng nhập bằng Google. Vui lòng thử lại.",
+  UNSUPPORTED_IMAGE: "Ảnh không đúng định dạng. Chỉ nhận JPG, PNG, WEBP hoặc GIF.",
+  IMAGE_TOO_LARGE: "Ảnh không được lớn hơn 5 MB.",
+  IMAGE_REQUIRED: "Hãy chọn một ảnh.",
+  IMAGE_NOT_ALLOWED: "Bài chia sẻ không có ảnh riêng. Ảnh thuộc bài gốc.",
+  IMAGE_UPLOAD_FAILED: "Không thể tải ảnh lên. Vui lòng thử lại.",
   CANNOT_LOCK_ADMIN: "Không thể khóa tài khoản quản trị.",
   CANNOT_SHARE_OWN_POST: "Bạn không thể chia sẻ bài viết của chính mình.",
   CANNOT_SHARE_NON_PUBLIC_POST: "Chỉ bài viết công khai mới được chia sẻ.",
@@ -37,3 +45,8 @@ const DEFAULT_MESSAGE = "Đã có lỗi xảy ra. Vui lòng thử lại sau.";
 
 export const getErrorMessage = (error: unknown): string =>
   error instanceof ApiError ? (ERROR_MESSAGES[error.code] ?? DEFAULT_MESSAGE) : DEFAULT_MESSAGE;
+
+export const googleLoginErrorMessage = (code: string | null): string | null => {
+  if (!code) return null;
+  return ERROR_MESSAGES[code] ?? ERROR_MESSAGES.GOOGLE_AUTH_FAILED;
+};

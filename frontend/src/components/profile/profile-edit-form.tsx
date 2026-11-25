@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { ImagePlus } from "lucide-react";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { CharacterCounter } from "@/components/newsfeed/character-counter";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PROFILE_BIO_MAX_LENGTH, PROFILE_NAME_MAX_LENGTH } from "@/constants/profile";
 import { USERNAME_MAX_LENGTH, USERNAME_PATTERN, USERNAME_RULE_MESSAGE } from "@/constants/username";
 import { getErrorMessage } from "@/lib/error-messages";
+import { IMAGE_ACCEPT, validateImageFile } from "@/lib/image-file";
 import { formatFullDate } from "@/lib/format-time";
 import { nextUsernameChangeAt } from "@/lib/username";
 import { userService } from "@/services/user.service";
@@ -25,11 +27,15 @@ interface ProfileFormValues {
 interface ProfileEditFormProps {
   profile: UserProfile;
   onSaved: (profile: UserProfile) => void;
+  onAvatarUpdated: (profile: UserProfile) => void;
   onCancel: () => void;
 }
 
-export function ProfileEditForm({ profile, onSaved, onCancel }: ProfileEditFormProps) {
+export function ProfileEditForm({ profile, onSaved, onAvatarUpdated, onCancel }: ProfileEditFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const {
     register,
     handleSubmit,
@@ -40,6 +46,24 @@ export function ProfileEditForm({ profile, onSaved, onCancel }: ProfileEditFormP
   });
   const bioValue = useWatch({ control, name: "bio" }) ?? "";
   const usernameLockedUntil = nextUsernameChangeAt(profile.usernameChangedAt);
+  const isBusy = isSubmitting || isUploadingAvatar;
+
+  const uploadAvatar = async (file: File) => {
+    const message = validateImageFile(file);
+    if (message) {
+      setAvatarError(message);
+      return;
+    }
+    setAvatarError(null);
+    setIsUploadingAvatar(true);
+    try {
+      onAvatarUpdated(await userService.updateAvatar(profile.id, file));
+    } catch (error) {
+      setAvatarError(getErrorMessage(error));
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -60,8 +84,31 @@ export function ProfileEditForm({ profile, onSaved, onCancel }: ProfileEditFormP
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-5">
-      <div className="flex justify-center">
-        <UserAvatar fullName={profile.fullName} avatarUrl={profile.avatarUrl} size="lg" />
+      <div className="flex flex-col items-center gap-3">
+        <UserAvatar fullName={profile.fullName} avatarUrl={profile.avatarUrl} size="lg" zoomable={profile.avatarUrl !== null} />
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void uploadAvatar(file);
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 w-auto px-4"
+          disabled={isBusy}
+          isLoading={isUploadingAvatar}
+          onClick={() => avatarInputRef.current?.click()}
+        >
+          {!isUploadingAvatar && <ImagePlus className="size-4" aria-hidden="true" />}
+          Đổi ảnh đại diện
+        </Button>
+        {avatarError && <p className="text-sm text-rose-600">{avatarError}</p>}
       </div>
       <TextField
         id="profile-full-name"
@@ -123,10 +170,10 @@ export function ProfileEditForm({ profile, onSaved, onCancel }: ProfileEditFormP
         </FormAlert>
       )}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" className="sm:w-auto" onClick={onCancel} disabled={isSubmitting}>
+        <Button type="button" variant="outline" className="sm:w-auto" onClick={onCancel} disabled={isBusy}>
           Hủy
         </Button>
-        <Button type="submit" className="sm:w-auto" isLoading={isSubmitting} disabled={bioValue.length > PROFILE_BIO_MAX_LENGTH}>
+        <Button type="submit" className="sm:w-auto" isLoading={isSubmitting} disabled={isBusy || bioValue.length > PROFILE_BIO_MAX_LENGTH}>
           Lưu thay đổi
         </Button>
       </div>

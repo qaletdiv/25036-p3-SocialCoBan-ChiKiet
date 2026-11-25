@@ -22,10 +22,11 @@ import type { Message } from "@/types/conversation";
 interface MessagesViewProps {
   user: AuthUser;
   selectedConversationId: string | null;
+  focusMessageId: string | null;
   onLogout: () => void;
 }
 
-export function MessagesView({ user, selectedConversationId, onLogout }: MessagesViewProps) {
+export function MessagesView({ user, selectedConversationId, focusMessageId, onLogout }: MessagesViewProps) {
   const router = useRouter();
   const { socket, reconnectCount, refreshUnreadCount } = useChatRealtime();
   const conversationsState = useConversations(socket, reconnectCount);
@@ -127,9 +128,10 @@ export function MessagesView({ user, selectedConversationId, onLogout }: Message
             )}
             {active.status === "ready" && activeConversation && (
               <ChatPanel
-                key={activeConversation.id}
+                key={`${activeConversation.id}:${focusMessageId ?? ""}`}
                 conversation={activeConversation}
                 currentUserId={user.id}
+                focusMessageId={focusMessageId}
                 socket={socket}
                 reconnectCount={reconnectCount}
                 onSent={handleSent}

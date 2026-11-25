@@ -2,25 +2,29 @@
 
 import { PageBackdrop } from "@/components/common/page-backdrop";
 import { ExploreSearchForm } from "@/components/explore/explore-search-form";
+import { ExploreTabs } from "@/components/explore/explore-tabs";
+import { PostSearchResults } from "@/components/explore/post-search-results";
 import { UserSearchResults } from "@/components/explore/user-search-results";
 import { AppHeader } from "@/components/layout/app-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SideNav } from "@/components/layout/side-nav";
 import { ProfileSummaryCard } from "@/components/newsfeed/profile-summary-card";
 import { RightRail } from "@/components/newsfeed/right-rail";
+import type { ExploreTab } from "@/lib/explore-path";
 import type { AuthUser } from "@/types/auth";
 
 interface ExploreViewProps {
   user: AuthUser;
   query: string;
+  tab: ExploreTab;
   onLogout: () => void;
 }
 
-export function ExploreView({ user, query, onLogout }: ExploreViewProps) {
+export function ExploreView({ user, query, tab, onLogout }: ExploreViewProps) {
   return (
     <div className="flex min-h-screen flex-1 flex-col lg:h-dvh lg:min-h-0 lg:flex-none lg:overflow-hidden">
       <PageBackdrop />
-      <AppHeader user={user} searchQuery={query} onLogout={onLogout} />
+      <AppHeader user={user} searchQuery={query} searchTab={tab} onLogout={onLogout} />
       <main className="mx-auto grid w-full max-w-360 flex-1 gap-6 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 lg:min-h-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-6 lg:pb-6 xl:grid-cols-[18rem_minmax(0,1fr)_20rem] 2xl:grid-cols-[20rem_minmax(0,1fr)_22rem]">
         <aside className="hidden lg:flex lg:min-h-0 lg:flex-col lg:gap-4">
           <ProfileSummaryCard user={user} />
@@ -31,10 +35,11 @@ export function ExploreView({ user, query, onLogout }: ExploreViewProps) {
           <div className="mx-auto w-full max-w-3xl space-y-5">
             <div>
               <h1 className="text-2xl font-bold text-brand-900">Khám phá</h1>
-              <p className="mt-1 text-sm text-zinc-600">Tìm bạn bè theo họ tên hoặc tên đăng nhập.</p>
+              <p className="mt-1 text-sm text-zinc-600">Tìm tài khoản hoặc bài viết.</p>
             </div>
-            <ExploreSearchForm key={query} initialQuery={query} />
-            <UserSearchResults query={query} />
+            <ExploreTabs query={query} tab={tab} />
+            <ExploreSearchForm key={`${tab}:${query}`} initialQuery={query} tab={tab} />
+            {tab === "posts" ? <PostSearchResults query={query} user={user} /> : <UserSearchResults query={query} />}
           </div>
         </div>
 

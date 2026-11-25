@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import type { ContactSearchQueryDto } from "@/dtos/contact-search-query.dto";
 import type { CursorQueryDto } from "@/dtos/cursor-query.dto";
+import type { MessageListQueryDto } from "@/dtos/message-list-query.dto";
 import type { IdParamDto } from "@/dtos/id-param.dto";
 import type { MessageParamDto } from "@/dtos/message-param.dto";
 import type { OpenConversationDto } from "@/dtos/open-conversation.dto";
@@ -21,8 +22,12 @@ export const getUnreadCount: RequestHandler = async (req, res) => {
 
 export const searchContacts: RequestHandler = async (req, res) => {
   const { q } = res.locals.query as ContactSearchQueryDto;
-  const users = await conversationService.searchContacts(requireUserId(req), q);
-  res.json({ success: true, data: { users } });
+  const userId = requireUserId(req);
+  const [users, messages] = await Promise.all([
+    conversationService.searchContacts(userId, q),
+    conversationService.searchMessages(userId, q),
+  ]);
+  res.json({ success: true, data: { users, messages } });
 };
 
 export const openConversation: RequestHandler = async (req, res) => {
@@ -39,8 +44,8 @@ export const getConversation: RequestHandler = async (req, res) => {
 
 export const listMessages: RequestHandler = async (req, res) => {
   const { id } = res.locals.params as IdParamDto;
-  const { cursor } = res.locals.query as CursorQueryDto;
-  const page = await conversationService.listMessages(requireUserId(req), id, cursor);
+  const { cursor, after, focus } = res.locals.query as MessageListQueryDto;
+  const page = await conversationService.listMessages(requireUserId(req), id, { cursor, after, focus });
   res.json({ success: true, data: page });
 };
 

@@ -29,6 +29,13 @@ export interface ConversationPage {
 export interface MessagePage {
   messages: Message[];
   nextCursor: string | null;
+  newerCursor: string | null;
+}
+
+export interface MessageSearchHit {
+  conversationId: string;
+  participant: ChatParticipant;
+  message: Pick<Message, "id" | "senderId" | "content" | "createdAt">;
 }
 
 export interface TypingPayload {

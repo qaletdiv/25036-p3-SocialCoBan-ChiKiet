@@ -3,6 +3,8 @@ import { AppDataSource } from "@/config/data-source";
 import { Conversation } from "@/entities/conversation.entity";
 import { Message } from "@/entities/message.entity";
 
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (character) => `\\${character}`);
+
 interface NewMessageData {
   conversationId: string;
   senderId: string;
@@ -33,6 +35,23 @@ export const messageRepository = AppDataSource.getRepository(Message).extend({
 
     if (cursor) query.andWhere("message.id < :cursor", { cursor });
     return query.getMany();
+  },
+
+  // Oldest first. exclusive=false includes fromId, which is the focused message.
+  findFromId(
+    conversationId: string,
+    clearedMessageId: string,
+    fromId: string,
+    limit: number,
+    exclusive: boolean,
+  ): Promise<Message[]> {
+    return this.createQueryBuilder("message")
+      .where("message.conversationId = :conversationId", { conversationId })
+      .andWhere("message.id > :clearedMessageId", { clearedMessageId })
+      .andWhere(exclusive ? "message.id > :fromId" : "message.id >= :fromId", { fromId })
+      .orderBy("message.id", "ASC")
+      .limit(limit)
+      .getMany();
   },
 
   async markSeen(conversationId: string, recipientId: string, seenAt: Date): Promise<number> {
@@ -67,6 +86,37 @@ export const messageRepository = AppDataSource.getRepository(Message).extend({
       .getRawMany<{ conversationId: string; count: string }>();
 
     return new Map(rows.map((row) => [String(row.conversationId), Number(row.count)]));
+  },
+
+  // Newest matching message in each conversation the viewer can still read
+  searchLatestVisibleByContent(viewerId: string, term: string, limit: number): Promise<Message[]> {
+    const pattern = `%${escapeLike(term)}%`;
+    const stillVisible =
+      "message.id > IF(conversation.userLowId = :viewerId, conversation.userLowClearedMessageId, conversation.userHighClearedMessageId)";
+
+    return this.createQueryBuilder("message")
+      .innerJoin(Conversation, "conversation", "conversation.id = message.conversationId")
+      .where("(conversation.userLowId = :viewerId OR conversation.userHighId = :viewerId)", { viewerId })
+      .andWhere("message.recalledAt IS NULL")
+      .andWhere("message.content LIKE :pattern ESCAPE '\\\\'", { pattern })
+      .andWhere(stillVisible)
+      .andWhere(
+        `message.id = (
+          SELECT MAX(matched.id) FROM messages matched
+          INNER JOIN conversations matched_conversation ON matched_conversation.id = matched.conversation_id
+          WHERE matched.conversation_id = message.conversation_id
+            AND matched.recalled_at IS NULL
+            AND matched.content LIKE :pattern ESCAPE '\\\\'
+            AND matched.id > IF(
+              matched_conversation.user_low_id = :viewerId,
+              matched_conversation.user_low_cleared_message_id,
+              matched_conversation.user_high_cleared_message_id
+            )
+        )`,
+      )
+      .orderBy("message.id", "DESC")
+      .limit(limit)
+      .getMany();
   },
 
   async countUnreadConversations(viewerId: string): Promise<number> {

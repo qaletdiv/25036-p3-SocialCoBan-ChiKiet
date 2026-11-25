@@ -2,9 +2,11 @@ import { Router } from "express";
 import {
   forgotPassword,
   getCurrentUser,
+  googleCallback,
   login,
   logout,
   register,
+  startGoogleLogin,
   resendVerificationEmail,
   resetPassword,
   revokeSessions,
@@ -21,6 +23,7 @@ import { createRateLimiter } from "@/middlewares/rate-limit.middleware";
 import { validateBody } from "@/middlewares/validate.middleware";
 
 const loginLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 20 });
+const googleLoginLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 30 });
 const registerLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 10 });
 const verifyEmailLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 30 });
 const resendVerificationLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 5 });
@@ -29,6 +32,8 @@ const resetPasswordLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit
 
 export const authRouter = Router();
 
+authRouter.get("/google", googleLoginLimiter, startGoogleLogin);
+authRouter.get("/google/callback", googleLoginLimiter, googleCallback);
 authRouter.post("/login", loginLimiter, validateBody(LoginDto), login);
 authRouter.post("/register", registerLimiter, validateBody(RegisterDto), register);
 authRouter.post(

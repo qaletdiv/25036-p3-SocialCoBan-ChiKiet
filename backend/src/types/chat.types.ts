@@ -29,12 +29,19 @@ export interface ConversationPage {
 export interface MessagePage {
   messages: MessageView[];
   nextCursor: string | null;
+  newerCursor: string | null;
 }
 
 export interface ChatContact {
   id: string;
   fullName: string;
   avatarUrl: string | null;
+}
+
+export interface MessageSearchHit {
+  conversationId: string;
+  participant: ConversationParticipant;
+  message: Pick<MessageView, "id" | "senderId" | "content" | "createdAt">;
 }
 
 export interface TypingPayload {

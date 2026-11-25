@@ -18,8 +18,12 @@ export const COMING_SOON_LABEL = "Sắp ra mắt";
 
 export const userProfilePath = (userId: string): string => `/users/${userId}`;
 
-export const messagesPath = (conversationId?: string): string =>
-  conversationId ? `/messages?c=${conversationId}` : "/messages";
+export const messagesPath = (conversationId?: string, messageId?: string): string => {
+  if (!conversationId) return "/messages";
+  const params = new URLSearchParams({ c: conversationId });
+  if (messageId) params.set("m", messageId);
+  return `/messages?${params.toString()}`;
+};
 
 export const isNavigationActive = (pathname: string, href: string, userId: string): boolean => {
   if (href === "/profile") return pathname === "/profile" || pathname === userProfilePath(userId);

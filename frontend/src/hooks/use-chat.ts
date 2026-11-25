@@ -11,6 +11,7 @@ export type ChatStatus = "loading" | "ready" | "error";
 interface ChatOptions {
   conversationId: string;
   currentUserId: string;
+  focusMessageId?: string | null;
   socket: ChatSocket | null;
   reconnectCount: number;
   onSent: (message: Message) => void;
@@ -24,17 +25,31 @@ const replaceMessage = (messages: Message[], updated: Message): Message[] =>
   messages.map((message) => (message.id === updated.id ? updated : message));
 
 // Chat state is scoped to one conversation: remount (key by id) when it changes
-export const useChat = ({ conversationId, currentUserId, socket, reconnectCount, onSent, onRead }: ChatOptions) => {
+export const useChat = ({
+  conversationId,
+  currentUserId,
+  focusMessageId,
+  socket,
+  reconnectCount,
+  onSent,
+  onRead,
+}: ChatOptions) => {
   const [status, setStatus] = useState<ChatStatus>("loading");
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [newerCursor, setNewerCursor] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [loadOlderFailed, setLoadOlderFailed] = useState(false);
+  const [isLoadingNewer, setIsLoadingNewer] = useState(false);
+  const [loadNewerFailed, setLoadNewerFailed] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isRecalling, setIsRecalling] = useState(false);
   const [recallError, setRecallError] = useState<string | null>(null);
   const isFetchingOlderRef = useRef(false);
+  const isFetchingNewerRef = useRef(false);
+  const hasNewerRef = useRef(false);
+  const focusedLoadDoneRef = useRef(false);
   const handledReconnectRef = useRef(reconnectCount);
 
   // Tells the server the incoming messages were read and mirrors that locally to avoid repeat calls
@@ -59,18 +74,26 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
   const load = useCallback(
     async (silent: boolean) => {
       if (!silent) setStatus("loading");
+      const useFocus = !silent && Boolean(focusMessageId) && !focusedLoadDoneRef.current;
       try {
-        const page = await conversationService.listMessages(conversationId);
+        const page = await conversationService.listMessages(
+          conversationId,
+          useFocus ? { focus: focusMessageId } : undefined,
+        );
+        if (useFocus) focusedLoadDoneRef.current = true;
         setMessages(page.messages);
         setNextCursor(page.nextCursor);
+        setNewerCursor(page.newerCursor);
+        hasNewerRef.current = page.newerCursor !== null;
         setLoadOlderFailed(false);
+        setLoadNewerFailed(false);
         setStatus("ready");
         acknowledgeIncoming(page.messages);
       } catch {
         if (!silent) setStatus("error");
       }
     },
-    [acknowledgeIncoming, conversationId],
+    [acknowledgeIncoming, conversationId, focusMessageId],
   );
 
   useEffect(() => {
@@ -90,6 +113,13 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
     const handleNewMessage = ({ conversation }: { conversation: Conversation }) => {
       const message = conversation.lastMessage;
       if (!message || message.conversationId !== conversationId) return;
+      if (hasNewerRef.current) {
+        conversationService
+          .markSeen(conversationId)
+          .then(() => onRead(conversationId))
+          .catch(() => undefined);
+        return;
+      }
 
       setMessages((current) => appendUnique(current, message));
       acknowledgeIncoming([message]);
@@ -119,7 +149,7 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
       socket.off("message:seen", handleSeen);
       socket.off("message:recalled", handleRecalled);
     };
-  }, [acknowledgeIncoming, conversationId, currentUserId, socket]);
+  }, [acknowledgeIncoming, conversationId, currentUserId, onRead, socket]);
 
   const loadOlder = useCallback(async () => {
     if (!nextCursor || isFetchingOlderRef.current) return;
@@ -128,7 +158,7 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
     setIsLoadingOlder(true);
     setLoadOlderFailed(false);
     try {
-      const page = await conversationService.listMessages(conversationId, nextCursor);
+      const page = await conversationService.listMessages(conversationId, { cursor: nextCursor });
       setMessages((current) => {
         const knownIds = new Set(current.map((message) => message.id));
         return [...page.messages.filter((message) => !knownIds.has(message.id)), ...current];
@@ -142,13 +172,43 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
     }
   }, [conversationId, nextCursor]);
 
+  const loadNewer = useCallback(async () => {
+    if (!newerCursor || isFetchingNewerRef.current) return;
+
+    isFetchingNewerRef.current = true;
+    setIsLoadingNewer(true);
+    setLoadNewerFailed(false);
+    try {
+      const page = await conversationService.listMessages(conversationId, { after: newerCursor });
+      setMessages((current) => {
+        const knownIds = new Set(current.map((message) => message.id));
+        return [...current, ...page.messages.filter((message) => !knownIds.has(message.id))];
+      });
+      setNewerCursor(page.newerCursor);
+      hasNewerRef.current = page.newerCursor !== null;
+    } catch {
+      setLoadNewerFailed(true);
+    } finally {
+      isFetchingNewerRef.current = false;
+      setIsLoadingNewer(false);
+    }
+  }, [conversationId, newerCursor]);
+
   const send = useCallback(
     async (content: string): Promise<boolean> => {
       setIsSending(true);
       setSendError(null);
       try {
         const message = await conversationService.sendMessage(conversationId, content);
-        setMessages((current) => appendUnique(current, message));
+        if (hasNewerRef.current) {
+          const page = await conversationService.listMessages(conversationId);
+          setMessages(page.messages);
+          setNextCursor(page.nextCursor);
+          setNewerCursor(page.newerCursor);
+          hasNewerRef.current = page.newerCursor !== null;
+        } else {
+          setMessages((current) => appendUnique(current, message));
+        }
         onSent(message);
         return true;
       } catch (error) {
@@ -183,8 +243,11 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
     status,
     messages,
     hasOlder: nextCursor !== null,
+    hasNewer: newerCursor !== null,
     isLoadingOlder,
     loadOlderFailed,
+    isLoadingNewer,
+    loadNewerFailed,
     isSending,
     sendError,
     isRecalling,
@@ -192,6 +255,7 @@ export const useChat = ({ conversationId, currentUserId, socket, reconnectCount,
     clearRecallError: () => setRecallError(null),
     reload: () => load(false),
     loadOlder,
+    loadNewer,
     send,
     recall,
   };

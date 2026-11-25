@@ -16,9 +16,11 @@ export function MessagesContainer() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const conversationId = searchParams.get("c");
+  const messageId = searchParams.get("m");
+  const focusMessageId = messageId && /^\d{1,20}$/.test(messageId) ? messageId : null;
   const { status, user, refresh } = useAuthUser();
   const { logout } = useLogout();
-  const returnTo = messagesPath(conversationId ?? undefined);
+  const returnTo = messagesPath(conversationId ?? undefined, focusMessageId ?? undefined);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace(buildLoginUrl(returnTo));
@@ -42,7 +44,12 @@ export function MessagesContainer() {
 
   return (
     <ChatProvider>
-      <MessagesView user={user} selectedConversationId={conversationId} onLogout={() => void logout()} />
+      <MessagesView
+        user={user}
+        selectedConversationId={conversationId}
+        focusMessageId={focusMessageId}
+        onLogout={() => void logout()}
+      />
     </ChatProvider>
   );
 }

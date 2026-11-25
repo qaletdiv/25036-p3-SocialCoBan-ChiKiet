@@ -18,7 +18,7 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
         aria-label="Menu tài khoản"
         className="rounded-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
       >
-        <UserAvatar fullName={user.fullName} avatarUrl={user.avatarUrl} size="sm" />
+        <UserAvatar fullName={user.fullName} avatarUrl={user.avatarUrl} size="sm" zoomable={false} />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
@@ -27,8 +27,8 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
           className="z-50 w-64 rounded-2xl border border-brand-100 bg-white p-2 shadow-xl shadow-brand-900/10"
         >
           <div className="px-3 py-2">
-            <p className="truncate text-sm font-semibold text-brand-900">{user.fullName}</p>
-            <p className="truncate text-xs text-zinc-500">@{user.username}</p>
+            <p className="truncate text-lg font-bold leading-tight text-brand-900">{user.fullName}</p>
+            <p className="mt-0.5 truncate text-xs text-zinc-500">@{user.username}</p>
           </div>
           <DropdownMenu.Separator className="my-1 h-px bg-brand-100" />
           <DropdownMenu.Item asChild>

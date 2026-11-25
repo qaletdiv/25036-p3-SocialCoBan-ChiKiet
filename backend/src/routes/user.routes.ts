@@ -8,6 +8,7 @@ import {
   searchUsers,
   unfollowUser,
   updateProfile,
+  updateAvatar,
 } from "@/controllers/user.controller";
 import { CursorQueryDto } from "@/dtos/cursor-query.dto";
 import { IdParamDto } from "@/dtos/id-param.dto";
@@ -15,6 +16,7 @@ import { ProfilePostsQueryDto } from "@/dtos/profile-posts-query.dto";
 import { SearchUsersQueryDto } from "@/dtos/search-users-query.dto";
 import { UpdateProfileDto } from "@/dtos/update-profile.dto";
 import { requireAuth } from "@/middlewares/auth.middleware";
+import { uploadSingleImage } from "@/middlewares/upload.middleware";
 import { createRateLimiter } from "@/middlewares/rate-limit.middleware";
 import { validateBody, validateParams, validateQuery } from "@/middlewares/validate.middleware";
 
@@ -32,5 +34,6 @@ userRouter.get("/:id/followers", validateParams(IdParamDto), validateQuery(Curso
 userRouter.get("/:id/following", validateParams(IdParamDto), validateQuery(CursorQueryDto), listFollowing);
 userRouter.get("/:id", validateParams(IdParamDto), getProfile);
 userRouter.patch("/:id", profileUpdateLimiter, validateParams(IdParamDto), validateBody(UpdateProfileDto), updateProfile);
+userRouter.post("/:id/avatar", profileUpdateLimiter, uploadSingleImage, validateParams(IdParamDto), updateAvatar);
 userRouter.put("/:id/follow", followLimiter, validateParams(IdParamDto), followUser);
 userRouter.delete("/:id/follow", followLimiter, validateParams(IdParamDto), unfollowUser);

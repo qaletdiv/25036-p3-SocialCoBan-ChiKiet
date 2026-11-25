@@ -27,8 +27,8 @@ export interface AdminUserFilters {
 }
 
 export const userRepository = AppDataSource.getRepository(User).extend({
-  findById(id: string): Promise<User | null> {
-    return this.findOne({ where: { id } });
+  findById(id: string, manager: EntityManager = AppDataSource.manager): Promise<User | null> {
+    return manager.getRepository(User).findOne({ where: { id } });
   },
 
   countAll(): Promise<number> {
@@ -39,8 +39,12 @@ export const userRepository = AppDataSource.getRepository(User).extend({
     return this.count({ where: { createdAt: MoreThanOrEqual(since) } });
   },
 
-  findByEmail(email: string): Promise<User | null> {
-    return this.findOne({ where: { email } });
+  findByEmail(email: string, manager: EntityManager = AppDataSource.manager): Promise<User | null> {
+    return manager.getRepository(User).findOne({ where: { email } });
+  },
+
+  findByGoogleId(googleId: string, manager: EntityManager = AppDataSource.manager): Promise<User | null> {
+    return manager.getRepository(User).findOne({ where: { googleId } });
   },
 
   findByEmailWithPassword(email: string): Promise<User | null> {
@@ -50,8 +54,12 @@ export const userRepository = AppDataSource.getRepository(User).extend({
       .getOne();
   },
 
-  findByUsername(username: string): Promise<User | null> {
-    return this.createQueryBuilder("user").where("user.username = :username", { username }).getOne();
+  findByUsername(username: string, manager: EntityManager = AppDataSource.manager): Promise<User | null> {
+    return manager
+      .getRepository(User)
+      .createQueryBuilder("user")
+      .where("user.username = :username", { username })
+      .getOne();
   },
 
   findByUsernameWithPassword(username: string): Promise<User | null> {
@@ -64,6 +72,47 @@ export const userRepository = AppDataSource.getRepository(User).extend({
   createAccount(data: NewAccountData, manager: EntityManager = AppDataSource.manager): Promise<User> {
     const repository = manager.getRepository(User);
     return repository.save(repository.create({ ...data, emailVerifiedAt: null }));
+  },
+
+  createGoogleAccount(
+    data: { email: string; username: string; fullName: string; googleId: string; avatarUrl: string | null },
+    manager: EntityManager,
+  ): Promise<User> {
+    const repository = manager.getRepository(User);
+    return repository.save(
+      repository.create({
+        email: data.email,
+        username: data.username,
+        fullName: data.fullName,
+        googleId: data.googleId,
+        avatarUrl: data.avatarUrl,
+        passwordHash: null,
+        emailVerifiedAt: new Date(),
+      }),
+    );
+  },
+
+  async linkGoogleAccount(
+    userId: string,
+    data: { googleId: string; emailVerifiedAt?: Date; avatarUrl?: string },
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.getRepository(User).update({ id: userId }, {
+      googleId: data.googleId,
+      ...(data.emailVerifiedAt ? { emailVerifiedAt: data.emailVerifiedAt } : {}),
+      ...(data.avatarUrl ? { avatarUrl: data.avatarUrl } : {}),
+    });
+  },
+
+  async setAvatarIfEmpty(userId: string, avatarUrl: string, manager: EntityManager): Promise<void> {
+    await manager
+      .getRepository(User)
+      .createQueryBuilder()
+      .update(User)
+      .set({ avatarUrl })
+      .where("id = :userId", { userId })
+      .andWhere("avatar_url IS NULL")
+      .execute();
   },
 
   // A successful reset proves mailbox ownership, so the email is marked verified as well
@@ -86,6 +135,10 @@ export const userRepository = AppDataSource.getRepository(User).extend({
     data: { fullName: string; bio: string | null; username?: string; usernameChangedAt?: Date },
   ): Promise<void> {
     await this.update({ id: userId }, data);
+  },
+
+  async updateAvatar(userId: string, avatarUrl: string): Promise<void> {
+    await this.update({ id: userId }, { avatarUrl });
   },
 
   // People the user follows or has already exchanged messages with

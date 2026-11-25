@@ -4,6 +4,7 @@ import { USERNAME_CHANGE_COOLDOWN_MS } from "@/constants/username.constants";
 import { followRepository, type FollowCursor } from "@/repositories/follow.repository";
 import { userRepository } from "@/repositories/user.repository";
 import type { User } from "@/entities/user.entity";
+import { mediaService } from "@/services/media.service";
 import { AppError } from "@/utils/app-error";
 
 export interface UserSearchResult {
@@ -188,6 +189,14 @@ export const userService = {
       throw error;
     }
 
+    return this.getProfile(viewerId, profileId);
+  },
+
+  async updateAvatar(viewerId: string, profileId: string, file: Express.Multer.File): Promise<UserProfile> {
+    if (viewerId !== profileId) throw AppError.forbidden("You can only update your own profile");
+    await requireVisibleUser(profileId);
+    const avatarUrl = await mediaService.uploadAvatar(file.buffer);
+    await userRepository.updateAvatar(profileId, avatarUrl);
     return this.getProfile(viewerId, profileId);
   },
 

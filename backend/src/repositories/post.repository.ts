@@ -4,6 +4,8 @@ import type { PostPrivacy } from "@/constants/privacy.constants";
 import type { ProfilePostKind } from "@/constants/profile.constants";
 import { Post } from "@/entities/post.entity";
 
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (character) => `\\${character}`);
+
 const whereVisibleToViewer = (query: SelectQueryBuilder<Post>): SelectQueryBuilder<Post> => {
   const condition = new Brackets((builder) => {
     builder
@@ -28,6 +30,19 @@ export const postRepository = AppDataSource.getRepository(Post).extend({
     const query = includeReadableOrRemoved(
       whereVisibleToViewer(this.createQueryBuilder("post").innerJoinAndSelect("post.author", "author")),
     )
+      .setParameters({ viewerId, publicPrivacy: "public", followersPrivacy: "followers" })
+      .orderBy("post.id", "DESC")
+      .limit(limit);
+
+    if (cursor) query.andWhere("post.id < :cursor", { cursor });
+    return query.getMany();
+  },
+
+  searchVisibleByContent(viewerId: string, term: string, limit: number, cursor?: string): Promise<Post[]> {
+    const query = whereVisibleToViewer(
+      this.createQueryBuilder("post").innerJoinAndSelect("post.author", "author"),
+    )
+      .andWhere("post.content LIKE :pattern ESCAPE '\\\\'", { pattern: `%${escapeLike(term)}%` })
       .setParameters({ viewerId, publicPrivacy: "public", followersPrivacy: "followers" })
       .orderBy("post.id", "DESC")
       .limit(limit);
@@ -75,9 +90,17 @@ export const postRepository = AppDataSource.getRepository(Post).extend({
     return this.findOne({ where: { userId, sharedPostId }, relations: { author: true } });
   },
 
-  async createForUser(userId: string, content: string, privacy: PostPrivacy): Promise<Post> {
+  async createForUser(userId: string, content: string, privacy: PostPrivacy, imageUrl: string | null): Promise<Post> {
     const post = await this.save(
-      this.create({ userId, content, privacy, sharedPostId: null, editedAt: null, removedByModeration: false }),
+      this.create({
+        userId,
+        content,
+        imageUrl,
+        privacy,
+        sharedPostId: null,
+        editedAt: null,
+        removedByModeration: false,
+      }),
     );
     return this.findOneOrFail({ where: { id: post.id }, relations: { author: true } });
   },
@@ -95,6 +118,10 @@ export const postRepository = AppDataSource.getRepository(Post).extend({
 
   async updateContent(id: string, content: string): Promise<void> {
     await this.update({ id }, { content, editedAt: new Date() });
+  },
+
+  async updateContentAndImage(id: string, content: string, imageUrl: string | null): Promise<void> {
+    await this.update({ id }, { content, imageUrl, editedAt: new Date() });
   },
 
   async softDeleteById(id: string): Promise<void> {

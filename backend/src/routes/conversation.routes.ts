@@ -13,6 +13,7 @@ import {
 } from "@/controllers/conversation.controller";
 import { ContactSearchQueryDto } from "@/dtos/contact-search-query.dto";
 import { CursorQueryDto } from "@/dtos/cursor-query.dto";
+import { MessageListQueryDto } from "@/dtos/message-list-query.dto";
 import { IdParamDto } from "@/dtos/id-param.dto";
 import { MessageParamDto } from "@/dtos/message-param.dto";
 import { OpenConversationDto } from "@/dtos/open-conversation.dto";
@@ -37,7 +38,7 @@ conversationRouter.get("/search", searchLimiter, validateQuery(ContactSearchQuer
 conversationRouter.post("/", openLimiter, validateBody(OpenConversationDto), openConversation);
 conversationRouter.get("/:id", validateParams(IdParamDto), getConversation);
 conversationRouter.delete("/:id", modifyLimiter, validateParams(IdParamDto), deleteConversation);
-conversationRouter.get("/:id/messages", validateParams(IdParamDto), validateQuery(CursorQueryDto), listMessages);
+conversationRouter.get("/:id/messages", validateParams(IdParamDto), validateQuery(MessageListQueryDto), listMessages);
 conversationRouter.post("/:id/messages", sendLimiter, validateParams(IdParamDto), validateBody(SendMessageDto), sendMessage);
 conversationRouter.post("/:id/messages/:messageId/recall", modifyLimiter, validateParams(MessageParamDto), recallMessage);
 conversationRouter.put("/:id/seen", validateParams(IdParamDto), markConversationSeen);

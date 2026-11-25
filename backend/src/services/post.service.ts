@@ -7,11 +7,13 @@ import { commentRepository } from "@/repositories/comment.repository";
 import { postRepository } from "@/repositories/post.repository";
 import { postAccessService } from "@/services/post-access.service";
 import { reactionService, type ReactionSummary } from "@/services/reaction.service";
+import { mediaService } from "@/services/media.service";
 import { AppError } from "@/utils/app-error";
 
 export interface SharedOriginalView {
   id: string;
   content: string;
+  imageUrl: string | null;
   privacy: PostPrivacy;
   createdAt: Date;
   editedAt: Date | null;
@@ -28,6 +30,7 @@ export interface SharedPostView {
 export interface PostView {
   id: string;
   content: string;
+  imageUrl: string | null;
   privacy: PostPrivacy;
   createdAt: Date;
   editedAt: Date | null;
@@ -67,6 +70,7 @@ const toSharedPostView = (original: Post | undefined, visibleIds: ReadonlySet<st
     original: {
       id: original.id,
       content: original.content,
+      imageUrl: original.imageUrl,
       privacy: original.privacy,
       createdAt: original.createdAt,
       editedAt: original.editedAt,
@@ -91,6 +95,7 @@ const toPostViews = async (viewerId: string, posts: Post[]): Promise<PostView[]>
     return {
       id: post.id,
       content: removed ? "" : post.content,
+      imageUrl: removed ? null : post.imageUrl,
       privacy: post.privacy,
       createdAt: post.createdAt,
       editedAt: removed ? null : post.editedAt,
@@ -133,6 +138,18 @@ export const postService = {
     };
   },
 
+  async searchPosts(userId: string, term: string, cursor?: string): Promise<FeedPage> {
+    const rows = await postRepository.searchVisibleByContent(userId, term, FEED_DEFAULT_PAGE_SIZE + 1, cursor);
+    const hasMore = rows.length > FEED_DEFAULT_PAGE_SIZE;
+    const posts = hasMore ? rows.slice(0, FEED_DEFAULT_PAGE_SIZE) : rows;
+    const lastPost = posts[posts.length - 1];
+
+    return {
+      posts: await toPostViews(userId, posts),
+      nextCursor: hasMore && lastPost ? lastPost.id : null,
+    };
+  },
+
   async listProfilePosts(
     viewerId: string,
     authorId: string,
@@ -151,8 +168,8 @@ export const postService = {
     };
   },
 
-  async createPost(userId: string, content: string, privacy: PostPrivacy): Promise<PostView> {
-    return toPostView(userId, await postRepository.createForUser(userId, content, privacy));
+  async createPost(userId: string, content: string, privacy: PostPrivacy, imageUrl: string | null): Promise<PostView> {
+    return toPostView(userId, await postRepository.createForUser(userId, content, privacy, imageUrl));
   },
 
   async updatePrivacy(userId: string, postId: string, privacy: PostPrivacy): Promise<PostView> {
@@ -164,14 +181,33 @@ export const postService = {
     return toPostView(userId, updated);
   },
 
-  async updatePost(userId: string, postId: string, content: string): Promise<PostView> {
+  async updatePost(
+    userId: string,
+    postId: string,
+    content: string,
+    image?: { file?: Express.Multer.File; removeImage?: boolean },
+  ): Promise<PostView> {
     const post = await findOwnedPost(userId, postId);
     if (content.length === 0 && post.sharedPostId === null) {
       throw AppError.validation([{ field: "content", messages: ["content should not be empty"] }]);
     }
-    if (post.content === content) return toPostView(userId, post);
+    if (post.sharedPostId && (image?.file || image?.removeImage)) throw AppError.imageNotAllowed();
 
-    await postRepository.updateContent(post.id, content);
+    let imageUrl = post.imageUrl;
+    let imageChanged = false;
+    if (image?.file) {
+      imageUrl = await mediaService.uploadPostImage(image.file.buffer);
+      imageChanged = true;
+    } else if (image?.removeImage && post.imageUrl) {
+      imageUrl = null;
+      imageChanged = true;
+    }
+
+    if (post.content === content && !imageChanged) return toPostView(userId, post);
+
+    if (imageChanged) await postRepository.updateContentAndImage(post.id, content, imageUrl);
+    else await postRepository.updateContent(post.id, content);
+
     const updated = await postRepository.findByIdWithAuthor(post.id);
     if (!updated) throw AppError.notFound("Post not found");
     return toPostView(userId, updated);

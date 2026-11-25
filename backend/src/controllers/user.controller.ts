@@ -6,6 +6,7 @@ import type { SearchUsersQueryDto } from "@/dtos/search-users-query.dto";
 import type { UpdateProfileDto } from "@/dtos/update-profile.dto";
 import { postService } from "@/services/post.service";
 import { userService } from "@/services/user.service";
+import { AppError } from "@/utils/app-error";
 import { requireUserId } from "@/utils/request-context";
 
 export const searchUsers: RequestHandler = async (req, res) => {
@@ -29,6 +30,13 @@ export const unfollowUser: RequestHandler = async (req, res) => {
 export const getProfile: RequestHandler = async (req, res) => {
   const { id } = res.locals.params as IdParamDto;
   const profile = await userService.getProfile(requireUserId(req), id);
+  res.json({ success: true, data: { profile } });
+};
+
+export const updateAvatar: RequestHandler = async (req, res) => {
+  if (!req.file) throw AppError.imageRequired();
+  const { id } = res.locals.params as IdParamDto;
+  const profile = await userService.updateAvatar(requireUserId(req), id, req.file);
   res.json({ success: true, data: { profile } });
 };
 

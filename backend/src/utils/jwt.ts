@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
 import { env } from "@/config/env";
-import { SESSION_REVOCATION_TTL_SECONDS } from "@/constants/auth.constants";
+import { GOOGLE_OAUTH_TTL_SECONDS, SESSION_REVOCATION_TTL_SECONDS } from "@/constants/auth.constants";
 
 const SESSION_REVOCATION_TYPE = "session-revocation";
+const GOOGLE_OAUTH_TYPE = "google-oauth";
 
 interface DecodedPayload {
   sub: string;
@@ -37,4 +38,20 @@ export const verifySessionRevocationToken = (token: string): string => {
   const payload = decode(token);
   if (payload.typ !== SESSION_REVOCATION_TYPE) throw new Error("Not a session revocation token");
   return payload.sub;
+};
+
+export const signGoogleOAuthState = (state: string, redirectTo: string): string =>
+  jwt.sign({ typ: GOOGLE_OAUTH_TYPE, state, redirectTo }, env.jwt.secret, { expiresIn: GOOGLE_OAUTH_TTL_SECONDS });
+
+export const verifyGoogleOAuthState = (token: string): { state: string; redirectTo: string } => {
+  const decoded = jwt.verify(token, env.jwt.secret);
+  if (
+    typeof decoded === "string" ||
+    decoded.typ !== GOOGLE_OAUTH_TYPE ||
+    typeof decoded.state !== "string" ||
+    typeof decoded.redirectTo !== "string"
+  ) {
+    throw new Error("Not a Google sign-in state");
+  }
+  return { state: decoded.state, redirectTo: decoded.redirectTo };
 };

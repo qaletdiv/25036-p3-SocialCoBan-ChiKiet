@@ -17,6 +17,7 @@ export interface PostAuthor {
 export interface SharedOriginal {
   id: string;
   content: string;
+  imageUrl: string | null;
   privacy: PostPrivacy;
   createdAt: string;
   editedAt: string | null;
@@ -33,6 +34,7 @@ export interface SharedPost {
 export interface Post {
   id: string;
   content: string;
+  imageUrl: string | null;
   privacy: PostPrivacy;
   createdAt: string;
   editedAt: string | null;

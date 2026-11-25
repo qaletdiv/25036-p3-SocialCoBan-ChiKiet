@@ -34,11 +34,15 @@ export function ProfileView({ user, profileId, onLogout, onUserUpdated }: Profil
   const [openList, setOpenList] = useState<ConnectionList | null>(null);
   const [listRefreshKey, setListRefreshKey] = useState(0);
 
-  const handleSaved = (updated: UserProfile) => {
+  const applyProfile = (updated: UserProfile) => {
     profileState.replaceProfile(updated);
     if (updated.isSelf) {
       onUserUpdated({ fullName: updated.fullName, username: updated.username, avatarUrl: updated.avatarUrl });
     }
+  };
+
+  const handleSaved = (updated: UserProfile) => {
+    applyProfile(updated);
     setIsEditing(false);
   };
 
@@ -108,12 +112,13 @@ export function ProfileView({ user, profileId, onLogout, onUserUpdated }: Profil
                 <Modal
                   open={isEditing}
                   title="Chỉnh sửa trang cá nhân"
-                  description="Cập nhật họ tên, tên đăng nhập và tiểu sử. Ảnh đại diện sẽ được bổ sung sau."
+                  description="Cập nhật ảnh đại diện, họ tên, tên đăng nhập và tiểu sử."
                   onClose={() => setIsEditing(false)}
                 >
                   <ProfileEditForm
                     profile={profileState.profile}
                     onSaved={handleSaved}
+                    onAvatarUpdated={applyProfile}
                     onCancel={() => setIsEditing(false)}
                   />
                 </Modal>

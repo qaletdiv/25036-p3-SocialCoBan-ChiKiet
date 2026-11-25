@@ -26,7 +26,10 @@ export function PostComposerContainer({ user, onCreated }: PostComposerContainer
       isPreviewing={composer.isPreviewing}
       isSubmitting={composer.isSubmitting}
       error={composer.error}
+      imagePreview={composer.imagePreview}
       onChange={composer.setContent}
+      onSelectImage={composer.selectImage}
+      onClearImage={composer.clearImage}
       onPrivacyChange={composer.setPrivacy}
       onTogglePreview={composer.togglePreview}
       onCancel={composer.cancel}

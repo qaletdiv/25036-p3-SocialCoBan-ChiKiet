@@ -39,4 +39,14 @@ export const env = {
     password: requireEnv("EMAIL_PASSWORD"),
   },
   clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:3000",
+  cloudinary: {
+    cloudName: requireEnv("CLOUDINARY_CLOUD_NAME"),
+    apiKey: requireEnv("CLOUDINARY_API_KEY"),
+    apiSecret: requireEnv("CLOUDINARY_API_SECRET"),
+  },
+  google: {
+    clientId: requireEnv("GOOGLE_CLIENT_ID"),
+    clientSecret: requireEnv("GOOGLE_CLIENT_SECRET"),
+    redirectUri: process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:4000/api/auth/google/callback",
+  },
 } as const;

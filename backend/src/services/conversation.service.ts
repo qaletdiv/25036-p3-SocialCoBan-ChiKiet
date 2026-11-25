@@ -1,6 +1,7 @@
-import { QueryFailedError } from "typeorm";
+import { In, QueryFailedError } from "typeorm";
 import {
   CONVERSATION_PAGE_SIZE,
+  MESSAGE_FOCUS_BEFORE,
   MESSAGE_PAGE_SIZE,
   MESSAGE_RECALL_WINDOW_MS,
 } from "@/constants/message.constants";
@@ -15,6 +16,7 @@ import { userRepository } from "@/repositories/user.repository";
 import type {
   ChatContact,
   ConversationPage,
+  MessageSearchHit,
   ConversationParticipant,
   ConversationView,
   MessagePage,
@@ -132,6 +134,38 @@ export const conversationService = {
     return users.map(toParticipant);
   },
 
+  async searchMessages(userId: string, term: string): Promise<MessageSearchHit[]> {
+    const messages = await messageRepository.searchLatestVisibleByContent(userId, term, SEARCH_PAGE_SIZE);
+    if (messages.length === 0) return [];
+
+    const conversationIds = [...new Set(messages.map((message) => message.conversationId))];
+    const conversations = await conversationRepository.find({ where: { id: In(conversationIds) } });
+    const conversationsById = new Map(conversations.map((conversation) => [conversation.id, conversation]));
+    const participantIds = [
+      ...new Set(conversations.map((conversation) => otherParticipantId(conversation, userId))),
+    ];
+    const participants = await userRepository.find({ where: { id: In(participantIds) } });
+    const participantsById = new Map(participants.map((participant) => [participant.id, participant]));
+
+    return messages.flatMap((message) => {
+      const conversation = conversationsById.get(message.conversationId);
+      const participant = conversation ? participantsById.get(otherParticipantId(conversation, userId)) : undefined;
+      if (!conversation || !participant) return [];
+      return [
+        {
+          conversationId: conversation.id,
+          participant: toParticipant(participant),
+          message: {
+            id: message.id,
+            senderId: message.senderId,
+            content: message.content,
+            createdAt: message.createdAt,
+          },
+        },
+      ];
+    });
+  },
+
   async getConversation(userId: string, conversationId: string): Promise<ConversationView> {
     return buildView(userId, await requireMemberConversation(userId, conversationId));
   },
@@ -157,15 +191,21 @@ export const conversationService = {
     return buildView(userId, conversation);
   },
 
-  async listMessages(userId: string, conversationId: string, cursor?: string): Promise<MessagePage> {
+  async listMessages(
+    userId: string,
+    conversationId: string,
+    query: { cursor?: string; after?: string; focus?: string } = {},
+  ): Promise<MessagePage> {
     const conversation = await requireMemberConversation(userId, conversationId);
+    const clearedMessageId = clearedMessageIdFor(conversation, userId);
 
-    const rows = await messageRepository.findPage(
-      conversationId,
-      clearedMessageIdFor(conversation, userId),
-      MESSAGE_PAGE_SIZE + 1,
-      cursor,
-    );
+    if (query.after) return this.listNewerMessages(conversationId, clearedMessageId, query.after);
+    if (query.focus && !query.cursor) {
+      const around = await this.listMessagesAround(conversationId, clearedMessageId, query.focus);
+      if (around) return around;
+    }
+
+    const rows = await messageRepository.findPage(conversationId, clearedMessageId, MESSAGE_PAGE_SIZE + 1, query.cursor);
     const hasMore = rows.length > MESSAGE_PAGE_SIZE;
     const page = hasMore ? rows.slice(0, MESSAGE_PAGE_SIZE) : rows;
     const oldest = page[page.length - 1];
@@ -173,6 +213,55 @@ export const conversationService = {
     return {
       messages: page.map(toMessageView).reverse(),
       nextCursor: hasMore && oldest ? oldest.id : null,
+      newerCursor: null,
+    };
+  },
+
+  async listNewerMessages(conversationId: string, clearedMessageId: string, afterId: string): Promise<MessagePage> {
+    const rows = await messageRepository.findFromId(conversationId, clearedMessageId, afterId, MESSAGE_PAGE_SIZE + 1, true);
+    const hasMore = rows.length > MESSAGE_PAGE_SIZE;
+    const page = hasMore ? rows.slice(0, MESSAGE_PAGE_SIZE) : rows;
+    const newest = page[page.length - 1];
+
+    return {
+      messages: page.map(toMessageView),
+      nextCursor: null,
+      newerCursor: hasMore && newest ? newest.id : null,
+    };
+  },
+
+  // A window around the focused message. Falls back when that message is no longer visible.
+  async listMessagesAround(conversationId: string, clearedMessageId: string, focusId: string): Promise<MessagePage | null> {
+    if (BigInt(focusId) <= BigInt(clearedMessageId)) return null;
+
+    const beforeRows = await messageRepository.findPage(
+      conversationId,
+      clearedMessageId,
+      MESSAGE_FOCUS_BEFORE + 1,
+      focusId,
+    );
+    const hasOlder = beforeRows.length > MESSAGE_FOCUS_BEFORE;
+    const before = (hasOlder ? beforeRows.slice(0, MESSAGE_FOCUS_BEFORE) : beforeRows).slice().reverse();
+
+    const afterRows = await messageRepository.findFromId(
+      conversationId,
+      clearedMessageId,
+      focusId,
+      MESSAGE_PAGE_SIZE + 1,
+      false,
+    );
+    if (!afterRows.some((message) => message.id === focusId)) return null;
+
+    const hasNewer = afterRows.length > MESSAGE_PAGE_SIZE;
+    const after = hasNewer ? afterRows.slice(0, MESSAGE_PAGE_SIZE) : afterRows;
+    const messages = [...before, ...after];
+    const oldest = messages[0];
+    const newest = messages[messages.length - 1];
+
+    return {
+      messages: messages.map(toMessageView),
+      nextCursor: hasOlder && oldest ? oldest.id : null,
+      newerCursor: hasNewer && newest ? newest.id : null,
     };
   },
 

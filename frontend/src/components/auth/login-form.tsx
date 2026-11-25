@@ -6,9 +6,15 @@ import { FormAlert } from "@/components/ui/form-alert";
 import { PasswordField } from "@/components/ui/password-field";
 import { TextField } from "@/components/ui/text-field";
 import type { useLogin } from "@/hooks/use-login";
+import { googleLoginUrl } from "@/lib/google-login";
 import { loginValidation } from "@/lib/validations/login";
 
-type LoginFormProps = ReturnType<typeof useLogin> & { justRegistered: boolean; lockedNotice?: boolean };
+type LoginFormProps = ReturnType<typeof useLogin> & {
+  justRegistered: boolean;
+  lockedNotice?: boolean;
+  redirectTo: string;
+  googleError?: string | null;
+};
 
 export function LoginForm({
   register,
@@ -22,9 +28,11 @@ export function LoginForm({
   resendVerificationEmail,
   justRegistered,
   lockedNotice = false,
+  redirectTo,
+  googleError = null,
 }: LoginFormProps) {
   const isResendSuccess = resendNotice?.type === "success";
-  const showRegisteredNotice = justRegistered && !serverError && !isResendSuccess;
+  const showRegisteredNotice = justRegistered && !serverError && !isResendSuccess && !googleError;
 
   return (
     <div className="w-full max-w-md space-y-8">
@@ -34,7 +42,12 @@ export function LoginForm({
       </header>
 
       <form onSubmit={onSubmit} noValidate className="space-y-5">
-        {lockedNotice && !serverError && (
+        {googleError && !serverError && (
+          <FormAlert variant="error">
+            <p>{googleError}</p>
+          </FormAlert>
+        )}
+        {lockedNotice && !serverError && !googleError && (
           <FormAlert variant="error">
             <p>Tài khoản đã bị khóa. Bạn không thể đăng nhập hoặc dùng các chức năng cần tài khoản.</p>
           </FormAlert>
@@ -104,7 +117,12 @@ export function LoginForm({
           <span className="h-px flex-1 bg-brand-100" />
         </div>
 
-        <GoogleLoginButton disabled={isLoading} />
+        <GoogleLoginButton
+          disabled={isLoading}
+          onClick={() => {
+            window.location.assign(googleLoginUrl(redirectTo));
+          }}
+        />
       </form>
 
       <p className="text-center text-sm text-zinc-500">

@@ -24,6 +24,7 @@ interface ChatPanelProps {
   onRead: (conversationId: string) => void;
   onDeleted: (conversationId: string) => void;
   onBack: () => void;
+  focusMessageId?: string | null;
 }
 
 export function ChatPanel({
@@ -35,9 +36,18 @@ export function ChatPanel({
   onRead,
   onDeleted,
   onBack,
+  focusMessageId,
 }: ChatPanelProps) {
   const { participant } = conversation;
-  const chat = useChat({ conversationId: conversation.id, currentUserId, socket, reconnectCount, onSent, onRead });
+  const chat = useChat({
+    conversationId: conversation.id,
+    currentUserId,
+    focusMessageId,
+    socket,
+    reconnectCount,
+    onSent,
+    onRead,
+  });
   const typing = useTyping({ socket, conversationId: conversation.id, participantId: participant.id });
   const deletion = useDeleteConversation(conversation.id, onDeleted);
   const [recallTarget, setRecallTarget] = useState<Message | null>(null);
@@ -109,9 +119,14 @@ export function ChatPanel({
             currentUserId={currentUserId}
             participantName={participant.fullName}
             hasOlder={chat.hasOlder}
+            hasNewer={chat.hasNewer}
             isLoadingOlder={chat.isLoadingOlder}
             loadOlderFailed={chat.loadOlderFailed}
+            isLoadingNewer={chat.isLoadingNewer}
+            loadNewerFailed={chat.loadNewerFailed}
+            focusMessageId={focusMessageId}
             onLoadOlder={() => void chat.loadOlder()}
+            onLoadNewer={() => void chat.loadNewer()}
             onRecall={setRecallTarget}
           />
           <p aria-live="polite" className="h-6 truncate bg-white px-5 text-xs text-zinc-500">

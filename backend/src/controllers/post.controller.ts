@@ -1,11 +1,13 @@
 import type { RequestHandler } from "express";
 import type { FeedQueryDto } from "@/dtos/feed-query.dto";
+import type { SearchPostsQueryDto } from "@/dtos/search-posts-query.dto";
 import type { IdParamDto } from "@/dtos/id-param.dto";
 import type { PostContentDto } from "@/dtos/post-content.dto";
 import type { PostPrivacyDto } from "@/dtos/post-privacy.dto";
 import type { SharePostDto } from "@/dtos/share-post.dto";
 import type { UpdatePostDto } from "@/dtos/update-post.dto";
 import { postService } from "@/services/post.service";
+import { mediaService } from "@/services/media.service";
 import { requireUserId } from "@/utils/request-context";
 
 export const getFeed: RequestHandler = async (req, res) => {
@@ -14,16 +16,26 @@ export const getFeed: RequestHandler = async (req, res) => {
   res.json({ success: true, data: feed });
 };
 
+export const searchPosts: RequestHandler = async (req, res) => {
+  const { q, cursor } = res.locals.query as SearchPostsQueryDto;
+  const page = await postService.searchPosts(requireUserId(req), q, cursor);
+  res.json({ success: true, data: page });
+};
+
 export const createPost: RequestHandler = async (req, res) => {
   const { content, privacy } = req.body as PostContentDto;
-  const post = await postService.createPost(requireUserId(req), content, privacy);
+  const imageUrl = req.file ? await mediaService.uploadPostImage(req.file.buffer) : null;
+  const post = await postService.createPost(requireUserId(req), content, privacy, imageUrl);
   res.status(201).json({ success: true, data: { post } });
 };
 
 export const updatePost: RequestHandler = async (req, res) => {
   const { id } = res.locals.params as IdParamDto;
-  const { content } = req.body as UpdatePostDto;
-  const post = await postService.updatePost(requireUserId(req), id, content);
+  const { content, removeImage } = req.body as UpdatePostDto;
+  const post = await postService.updatePost(requireUserId(req), id, content, {
+    file: req.file,
+    removeImage,
+  });
   res.json({ success: true, data: { post } });
 };
 

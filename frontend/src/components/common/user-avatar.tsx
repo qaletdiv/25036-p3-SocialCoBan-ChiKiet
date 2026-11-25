@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { ZoomableImage } from "@/components/common/zoomable-image";
 
 type AvatarSize = "sm" | "md" | "lg";
 
@@ -7,6 +8,7 @@ interface UserAvatarProps {
   avatarUrl: string | null;
   size?: AvatarSize;
   className?: string;
+  zoomable?: boolean;
 }
 
 const SIZE_STYLES: Record<AvatarSize, string> = {
@@ -23,12 +25,15 @@ const getInitials = (fullName: string): string => {
   return (words.length === 1 ? first.slice(0, 1) : `${first.slice(0, 1)}${last.slice(0, 1)}`).toUpperCase();
 };
 
-export function UserAvatar({ fullName, avatarUrl, size = "md", className }: UserAvatarProps) {
+export function UserAvatar({ fullName, avatarUrl, size = "md", className, zoomable = false }: UserAvatarProps) {
   const baseStyles = cn("shrink-0 rounded-full ring-2 ring-white", SIZE_STYLES[size], className);
 
   if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={avatarUrl} alt={fullName} className={cn("object-cover", baseStyles)} />;
+    if (!zoomable) {
+      // eslint-disable-next-line @next/next/no-img-element
+      return <img src={avatarUrl} alt={fullName} className={cn("object-cover", baseStyles)} />;
+    }
+    return <ZoomableImage src={avatarUrl} alt={fullName} className={cn("object-cover", baseStyles)} />;
   }
 
   return (

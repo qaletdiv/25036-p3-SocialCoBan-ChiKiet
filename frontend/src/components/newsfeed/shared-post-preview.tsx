@@ -3,6 +3,7 @@ import { Flag } from "lucide-react";
 import { UserAvatar } from "@/components/common/user-avatar";
 import { userProfilePath } from "@/constants/navigation";
 import { PostContent } from "@/components/newsfeed/post-content";
+import { PostImage } from "@/components/newsfeed/post-image";
 import { UnavailableContent } from "@/components/newsfeed/unavailable-content";
 import { formatFullDate, formatRelativeTime } from "@/lib/format-time";
 import type { SharedOriginal, SharedPostState } from "@/types/post";
@@ -50,6 +51,7 @@ export function SharedPostPreview({ state, original, onReport }: SharedPostPrevi
       </div>
       <div className="mt-2.5">
         <PostContent content={original.content} />
+        {original.imageUrl && <PostImage src={original.imageUrl} />}
       </div>
     </div>
   );

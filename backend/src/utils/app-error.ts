@@ -14,6 +14,14 @@ export type ErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "ACCOUNT_LOCKED"
+  | "GOOGLE_EMAIL_NOT_VERIFIED"
+  | "GOOGLE_ACCOUNT_CONFLICT"
+  | "GOOGLE_AUTH_FAILED"
+  | "UNSUPPORTED_IMAGE"
+  | "IMAGE_TOO_LARGE"
+  | "IMAGE_REQUIRED"
+  | "IMAGE_NOT_ALLOWED"
+  | "IMAGE_UPLOAD_FAILED"
   | "CANNOT_LOCK_ADMIN"
   | "CANNOT_SHARE_OWN_POST"
   | "CANNOT_SHARE_NON_PUBLIC_POST"
@@ -103,6 +111,38 @@ export class AppError extends Error {
 
   static accountLocked(): AppError {
     return new AppError(403, "ACCOUNT_LOCKED", "This account has been locked");
+  }
+
+  static googleEmailNotVerified(): AppError {
+    return new AppError(403, "GOOGLE_EMAIL_NOT_VERIFIED", "Google has not verified this email address");
+  }
+
+  static googleAccountConflict(): AppError {
+    return new AppError(409, "GOOGLE_ACCOUNT_CONFLICT", "This Google account cannot be linked to the email");
+  }
+
+  static googleAuthFailed(): AppError {
+    return new AppError(401, "GOOGLE_AUTH_FAILED", "Google sign-in failed");
+  }
+
+  static unsupportedImage(): AppError {
+    return new AppError(400, "UNSUPPORTED_IMAGE", "Only JPEG, PNG, WEBP and GIF images are allowed");
+  }
+
+  static imageTooLarge(): AppError {
+    return new AppError(400, "IMAGE_TOO_LARGE", "Image must be 5 MB or smaller");
+  }
+
+  static imageRequired(): AppError {
+    return new AppError(400, "IMAGE_REQUIRED", "An image file is required");
+  }
+
+  static imageNotAllowed(): AppError {
+    return new AppError(400, "IMAGE_NOT_ALLOWED", "Shared posts cannot contain their own image");
+  }
+
+  static imageUploadFailed(): AppError {
+    return new AppError(502, "IMAGE_UPLOAD_FAILED", "Unable to store the image");
   }
 
   static cannotLockAdmin(): AppError {

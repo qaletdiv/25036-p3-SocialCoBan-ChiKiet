@@ -20,17 +20,24 @@ export const postService = {
     return apiRequest<FeedPage>(`/posts/feed?${params.toString()}`);
   },
 
+  search(query: string, cursor?: string | null): Promise<FeedPage> {
+    const params = new URLSearchParams({ q: query });
+    if (cursor) params.set("cursor", cursor);
+    return apiRequest<FeedPage>(`/posts/search?${params.toString()}`);
+  },
+
   getByUser(userId: string, kind: ProfilePostKind, cursor?: string | null): Promise<FeedPage> {
     const params = new URLSearchParams({ kind, limit: String(FEED_PAGE_SIZE) });
     if (cursor) params.set("cursor", cursor);
     return apiRequest<FeedPage>(`/users/${userId}/posts?${params.toString()}`);
   },
 
-  async create(content: string, privacy: PostPrivacy): Promise<Post> {
-    const data = await apiRequest<PostResponse>("/posts", {
-      method: "POST",
-      body: JSON.stringify({ content, privacy }),
-    });
+  async create(content: string, privacy: PostPrivacy, image?: File | null): Promise<Post> {
+    const form = new FormData();
+    form.set("content", content);
+    form.set("privacy", privacy);
+    if (image) form.set("image", image);
+    const data = await apiRequest<PostResponse>("/posts", { method: "POST", body: form });
     return data.post;
   },
 
@@ -42,7 +49,15 @@ export const postService = {
     return data.post;
   },
 
-  async update(id: string, content: string): Promise<Post> {
+  async update(id: string, content: string, image?: { file?: File; remove?: boolean }): Promise<Post> {
+    if (image?.file || image?.remove) {
+      const form = new FormData();
+      form.set("content", content);
+      if (image.file) form.set("image", image.file);
+      if (image.remove) form.set("removeImage", "true");
+      const data = await apiRequest<PostResponse>(`/posts/${id}`, { method: "PATCH", body: form });
+      return data.post;
+    }
     const data = await apiRequest<PostResponse>(`/posts/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ content }),

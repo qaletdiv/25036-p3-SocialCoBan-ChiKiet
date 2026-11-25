@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CONTACT_SEARCH_DEBOUNCE_MS } from "@/constants/message";
 import { conversationService } from "@/services/conversation.service";
-import type { ChatParticipant } from "@/types/conversation";
+import type { ChatParticipant, MessageSearchHit } from "@/types/conversation";
 
 export type ContactSearchStatus = "idle" | "loading" | "ready" | "error";
 
@@ -11,6 +11,7 @@ export const useContactSearch = (query: string) => {
   const term = query.trim();
   const [status, setStatus] = useState<ContactSearchStatus>("idle");
   const [users, setUsers] = useState<ChatParticipant[]>([]);
+  const [messages, setMessages] = useState<MessageSearchHit[]>([]);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -26,7 +27,8 @@ export const useContactSearch = (query: string) => {
       try {
         const found = await conversationService.search(term);
         if (cancelled) return;
-        setUsers(found);
+        setUsers(found.users);
+        setMessages(found.messages);
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("error");
@@ -39,5 +41,5 @@ export const useContactSearch = (query: string) => {
     };
   }, [term, retryKey]);
 
-  return { term, status, users, retry: () => setRetryKey((key) => key + 1) };
+  return { term, status, users, messages, retry: () => setRetryKey((key) => key + 1) };
 };

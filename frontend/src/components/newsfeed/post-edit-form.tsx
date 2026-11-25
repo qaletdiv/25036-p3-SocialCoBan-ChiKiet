@@ -1,4 +1,5 @@
 import { CharacterCounter } from "@/components/newsfeed/character-counter";
+import { ImageAttachment } from "@/components/newsfeed/image-attachment";
 import { Button } from "@/components/ui/button";
 import { FormAlert } from "@/components/ui/form-alert";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,9 @@ interface PostEditFormProps {
   onChange: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  imagePreview?: string | null;
+  onSelectImage?: (file: File) => void;
+  onClearImage?: () => void;
 }
 
 export function PostEditForm({
@@ -32,6 +36,9 @@ export function PostEditForm({
   onChange,
   onSave,
   onCancel,
+  imagePreview,
+  onSelectImage,
+  onClearImage,
 }: PostEditFormProps) {
   return (
     <form
@@ -49,6 +56,9 @@ export function PostEditForm({
         disabled={isSaving}
         onChange={(event) => onChange(event.target.value)}
       />
+      {onSelectImage && onClearImage && (
+        <ImageAttachment previewUrl={imagePreview ?? null} disabled={isSaving} onSelect={onSelectImage} onClear={onClearImage} />
+      )}
       {isTooLong && (
         <p role="alert" className="text-sm text-rose-600">
           {overLimitMessage}

@@ -4,30 +4,31 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { buildExplorePath, type ExploreTab } from "@/lib/explore-path";
 
 interface HeaderSearchProps {
   defaultQuery?: string;
+  tab?: ExploreTab;
 }
 
-export function HeaderSearch({ defaultQuery = "" }: HeaderSearchProps) {
+export function HeaderSearch({ defaultQuery = "", tab = "users" }: HeaderSearchProps) {
   const router = useRouter();
   const [value, setValue] = useState(defaultQuery);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const term = value.trim();
-    router.push(term ? `/explore?q=${encodeURIComponent(term)}` : "/explore");
+    router.push(buildExplorePath(value, tab));
   };
 
   return (
     <>
       <form role="search" onSubmit={submit} className="hidden w-full max-w-md md:block">
         <label className="relative block">
-          <span className="sr-only">Tìm theo họ tên hoặc tên đăng nhập</span>
+          <span className="sr-only">Tìm tài khoản hoặc bài viết</span>
           <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-brand-500" aria-hidden="true" />
           <input
             value={value}
-            placeholder="Tìm theo họ tên hoặc tên đăng nhập"
+            placeholder="Tìm tài khoản hoặc bài viết"
             onChange={(event) => setValue(event.target.value)}
             className="h-11 w-full rounded-full border border-brand-100 bg-brand-50/60 pr-4 pl-11 text-sm text-brand-900 outline-none placeholder:text-zinc-400 focus:border-brand-300 focus:bg-white focus:ring-4 focus:ring-brand-100"
           />

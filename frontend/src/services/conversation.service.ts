@@ -1,5 +1,12 @@
 import { apiRequest } from "@/lib/api-client";
-import type { ChatParticipant, Conversation, ConversationPage, Message, MessagePage } from "@/types/conversation";
+import type {
+  ChatParticipant,
+  Conversation,
+  ConversationPage,
+  Message,
+  MessagePage,
+  MessageSearchHit,
+} from "@/types/conversation";
 
 const withCursor = (path: string, cursor?: string | null): string =>
   cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path;
@@ -9,9 +16,10 @@ export const conversationService = {
     return apiRequest<ConversationPage>(withCursor("/conversations", cursor));
   },
 
-  async search(query: string): Promise<ChatParticipant[]> {
-    const data = await apiRequest<{ users: ChatParticipant[] }>(`/conversations/search?q=${encodeURIComponent(query)}`);
-    return data.users;
+  search(query: string): Promise<{ users: ChatParticipant[]; messages: MessageSearchHit[] }> {
+    return apiRequest<{ users: ChatParticipant[]; messages: MessageSearchHit[] }>(
+      `/conversations/search?q=${encodeURIComponent(query)}`,
+    );
   },
 
   async open(userId: string): Promise<Conversation> {
@@ -27,8 +35,16 @@ export const conversationService = {
     return data.conversation;
   },
 
-  listMessages(conversationId: string, cursor?: string | null): Promise<MessagePage> {
-    return apiRequest<MessagePage>(withCursor(`/conversations/${conversationId}/messages`, cursor));
+  listMessages(
+    conversationId: string,
+    options?: { cursor?: string | null; after?: string | null; focus?: string | null },
+  ): Promise<MessagePage> {
+    const params = new URLSearchParams();
+    if (options?.cursor) params.set("cursor", options.cursor);
+    if (options?.after) params.set("after", options.after);
+    if (options?.focus) params.set("focus", options.focus);
+    const query = params.toString();
+    return apiRequest<MessagePage>(`/conversations/${conversationId}/messages${query ? `?${query}` : ""}`);
   },
 
   async sendMessage(conversationId: string, content: string): Promise<Message> {
